@@ -1,0 +1,43 @@
+Available Accounts
+==================
+(0) 0xe6bc6027733ea26e70748d9c9768cf7d968c9618
+(1) 0xec848a14feffec6ad4ecd236fa6312833bd2d125
+(2) 0x583a6a7f4a7b500adb9296c16f94b34076da73f3
+(3) 0xe7bdcc7c476a158126edccdc5a75140627fadc9d
+(4) 0xd52747efd95b98703f5d6134f9630f9f6af6d14c
+(5) 0x6abf636f900b3219327c87588e040afd6b5552ae
+(6) 0x30c2a62a6bda74e1e19933fe28debc6be8dcb111
+(7) 0x3e4e74cc8e03df77bbe7af1356fe2a2d43b86652
+(8) 0xb2988f132bb285b8dbacdbd2ed01450512fd194d
+(9) 0x7e8103ed808ea064a56358b5849149bdcbf185c0
+
+
+
+
+TrueToken: 0xed270ba28c9fbfcbffa338c91fe582f3d2a630d3
+
+
+TrueToken.deployed().then(function(instance){return instance.balanceOf('0xe6bc6027733ea26e70748d9c9768cf7d968c9618');}).then(function(value){return value.toNumber()});
+
+TrueToken.deployed().then(function(instance){return instance.coinAgeRecordForAddress('0xdf7280e189be2a87357578de0a1b63f161148904',0);}).then(function(value){return value});
+
+TrueToken.deployed().then(function(instance){return instance.startStakingAt(1527013460);}).then(function(value){return value});
+
+TrueDeckToken.deployed().then(function(instance){return instance.transfer('0x6df65bd1925852b3e0bd1af320b219c5b5f5e1ad',10000000000000000000);}).then(function(value){return value});
+
+TrueToken.deployed().then(function(instance){return instance.chainStartTime();}).then(function(value){return value.toNumber()});
+
+TrueToken.deployed().then(function(instance){return instance.coinAgeForAddress();}).then(function(value){return value.toNumber()});
+
+TrueToken.deployed().then(function(instance){return instance.calculateRewardForAddress();}).then(function(value){return value.toNumber()});
+
+
+
+==============
+
+TrueToken.deployed().then(function(instance){return instance.coinAgeForAddress('0xbbc146f5e66b56477b348c0858d9ecbdfe044cdd');}).then(function(value){return value.toNumber()});
+
+TrueToken.deployed().then(function(instance){return instance.coinAgeForAddressAt('0xbbc146f5e66b56477b348c0858d9ecbdfe044cdd',1531328402);}).then(function(value){return value.toNumber()});
+
+
+TrueToken.deployed().then(function(instance){return instance.calculateRewardForAddressAt('0xdf7280e189be2a87357578de0a1b63f161148904',1570213488);}).then(function(value){return value.toNumber()});

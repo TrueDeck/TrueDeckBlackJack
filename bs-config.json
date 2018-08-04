@@ -2,7 +2,7 @@
   "port": 8000,
   "files": ["./dist/**/*.{html,htm,css,js}"],
   "server": {
-    "baseDir": ["./src"]
+    "baseDir": ["./src/basic", "./build/contracts"]
   },
   "ui": {
     "port": 8001
