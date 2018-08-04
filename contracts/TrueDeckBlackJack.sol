@@ -881,7 +881,7 @@ contract TrueDeckBlackJack is Ownable {
 
     event StageChanged(bytes32 gameId, uint64 round, Stage newStage);
     event NewRound(bytes32 gameId, uint64 round, address player, uint256 bet);
-    event CardDrawn(bytes32 gameId, uint64 round, uint8 card, uint8 score, bool isDealer);
+    event CardDrawn(bytes32 gameId, uint64 round, uint256 card, uint8 score, bool isDealer);
     event Result(bytes32 gameId, uint64 round, uint256 payout, uint8 playerScore, uint8 dealerScore);
     event ProcessEvents(bytes32 gameId, uint64 round);
 
@@ -905,7 +905,7 @@ contract TrueDeckBlackJack is Ownable {
         uint8 score;
     }
 
-    uint256 constant NUMBER_OF_DECKS = 8;
+    uint256 constant NUMBER_OF_DECKS = 2;
 
     uint8[13] cardPoints = [11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
 
@@ -1049,7 +1049,7 @@ contract TrueDeckBlackJack is Ownable {
     function drawCard(Game game, Player storage player) private returns (uint256) {
         uint64 _now = uint64(now);
 
-        // Drawing card by generating a random index in a set of 8 deck
+        // Drawing card by generating a random index in a set of NUMBER_OF_DECKS deck
         uint256 card = ((player.seed * seed).add(_now)) % (NUMBER_OF_DECKS*52);
 
         // Modify seeds
@@ -1067,7 +1067,7 @@ contract TrueDeckBlackJack is Ownable {
             player.score += cardPoints[card];
         }
 
-        emit CardDrawn(game.id, game.round, uint8(card % 52), player.score, player.bet == 0);
+        emit CardDrawn(game.id, game.round, card, player.score, player.bet == 0);
 
         return card;
     }
