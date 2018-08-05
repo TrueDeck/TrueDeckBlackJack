@@ -156,7 +156,6 @@ App = {
               console.log("ID:       " + eventLog.args.gameId);
               console.log("round:    " + eventLog.args.round.toNumber());
               console.log("card:     " + eventLog.args.card.toNumber());
-              console.log("score:    " + eventLog.args.score.toNumber());
               console.log("isDealer: " + eventLog.args.isDealer);
               break;
 
@@ -228,7 +227,7 @@ App = {
       console.log("===== sitDown =====");
       web3.eth.getAccounts((error, accounts) => {
           App.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-              return instance.initGame(23434, {from: accounts[0]});
+              return instance.initGame(0x323434dacef45608a5d378967809853, {from: accounts[0]});
           }).then(function(result) {
               console.log(result);
           });
@@ -250,7 +249,7 @@ App = {
       console.log("===== hit =====");
       web3.eth.getAccounts((error, accounts) => {
           App.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-              return instance.hit(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0]});
+              return instance.hit({from: accounts[0]});
           }).then(function(result) {
               console.log(result);
           });
@@ -261,7 +260,7 @@ App = {
       console.log("===== stand =====");
       web3.eth.getAccounts((error, accounts) => {
           App.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-              return instance.stand(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0]});
+              return instance.stand({from: accounts[0]});
           }).then(function(result) {
               console.log(result);
           });

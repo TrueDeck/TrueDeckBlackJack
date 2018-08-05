@@ -146,7 +146,6 @@ function CGame(oData){
                   console.log("ID:       " + eventLog.args.gameId);
                   console.log("round:    " + eventLog.args.round.toNumber());
                   console.log("card:     " + eventLog.args.card.toNumber());
-                  console.log("score:    " + eventLog.args.score.toNumber());
                   console.log("isDealer: " + eventLog.args.isDealer);
 
                   s_oGame.cardDrawn(eventLog.args.card.toNumber(), eventLog.args.isDealer);
@@ -223,7 +222,7 @@ function CGame(oData){
           DApp.state.callback = callback;
           web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.initGame(23434, {from: accounts[0]});
+                  return instance.initGame(0x323434dacef45608a5d378967809853, {from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
               });
@@ -247,7 +246,7 @@ function CGame(oData){
           DApp.state.callback = callback;
           web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.hit(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0]});
+                  return instance.hit({from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
               });
@@ -259,7 +258,7 @@ function CGame(oData){
           DApp.state.callback = callback;
           web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.stand(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0]});
+                  return instance.stand({from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
               });

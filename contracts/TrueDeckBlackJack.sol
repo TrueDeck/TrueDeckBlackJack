@@ -881,7 +881,7 @@ contract TrueDeckBlackJack is Ownable {
 
     event StageChanged(bytes32 gameId, uint64 round, Stage newStage);
     event NewRound(bytes32 gameId, uint64 round, address player, uint256 bet);
-    event CardDrawn(bytes32 gameId, uint64 round, uint256 card, uint8 score, bool isDealer);
+    event CardDrawn(bytes32 gameId, uint64 round, uint256 card, bool isDealer);
     event Result(bytes32 gameId, uint64 round, uint256 payout, uint8 playerScore, uint8 dealerScore);
     event ProcessEvents(bytes32 gameId, uint64 round);
 
@@ -901,11 +901,10 @@ contract TrueDeckBlackJack is Ownable {
     struct Player {
         uint256 bet;
         uint256 seed;
-        uint256[] hand;
+        uint8[] hand;
+        uint8 numberOfAces;
         uint8 score;
     }
-
-    uint256 constant NUMBER_OF_DECKS = 2;
 
     uint8[13] cardPoints = [11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
 
@@ -917,7 +916,7 @@ contract TrueDeckBlackJack is Ownable {
 
     mapping(bytes32 => Player) public players;
 
-    uint256 seed;
+    uint256 seed = uint256(keccak256("TrueDeck BlackJack Initial Seed"));
 
     constructor() public {
         seed += now;
@@ -930,7 +929,7 @@ contract TrueDeckBlackJack is Ownable {
     function getHandState(Player player) private view returns (string handState) {
         string memory temp = "";
         for (uint8 i = 0; i < player.hand.length; i++) {
-            uint256 card = player.hand[i] % 52 % 13;
+            uint8 card = player.hand[i];
 			temp = temp.toSlice().concat(cardRanks[card].toSlice());
 			temp = temp.toSlice().concat(",".toSlice());
         }
@@ -944,8 +943,8 @@ contract TrueDeckBlackJack is Ownable {
         round = game.round;
         stage = game.stage;
 
-        dealerScore = dealers[gameId].score;
-        playerScore = players[gameId].score;
+        dealerScore = getScore(dealers[gameId]);
+        playerScore = getScore(players[gameId]);
 
         dealerHand = getHandState(dealers[gameId]);
         playerHand = getHandState(players[gameId]);
@@ -972,6 +971,8 @@ contract TrueDeckBlackJack is Ownable {
         dealers[game.id].score = 0;
         delete players[game.id].hand;
         delete dealers[game.id].hand;
+        players[game.id].numberOfAces = 0;
+        dealers[game.id].numberOfAces = 0;
     }
 
     function initGame(uint256 _seed) public atStage(Stage.SitDown) {
@@ -980,8 +981,8 @@ contract TrueDeckBlackJack is Ownable {
         seed += _seed;
 
         games[msg.sender] = Game(id, block.number, 0, Stage.SitDown);
-        dealers[id] = Player(0, 0, new uint256[](0), 0);
-        players[id] = Player(0, 0, new uint256[](0), 0);
+        dealers[id] = Player(0, 0, new uint8[](0), 0, 0);
+        players[id] = Player(0, 0, new uint8[](0), 0, 0);
 
         nextStage(games[msg.sender]);
         emit ProcessEvents(games[msg.sender].id, games[msg.sender].round);
@@ -991,8 +992,11 @@ contract TrueDeckBlackJack is Ownable {
         Game storage game = games[msg.sender];
 
         seed += _seed;
-        dealers[game.id].seed = _seed;
-        players[game.id].seed = _seed;
+
+        uint64 _now = uint64(now);
+        dealers[game.id].seed = uint256(keccak256(seed, _now));
+        players[game.id].seed = uint256(keccak256(_seed, _now));
+
         players[game.id].bet = msg.value;
         game.round++;
         game.blockNumber = block.number;
@@ -1014,95 +1018,68 @@ contract TrueDeckBlackJack is Ownable {
 
     }
 
-    function hit(uint256 _seed) public atStage(Stage.Play) {
+    function hit() public atStage(Stage.Play) {
         Game storage game = games[msg.sender];
         Player storage player = players[game.id];
-        if (player.score > 21) {
-            revert();
-        }
 
-        seed += _seed;
+        uint256 cardSeed = uint256(keccak256(player.seed, dealers[game.id].seed, now));
+        drawCard(game, player, uint8((cardSeed & 255) % 52 % 13));
 
-        drawCard(game, player);
-        player.score = recalculate(player);
-
-        if (player.score >= 21) {
-            concludeGame(game);
+        if (getScore(player) >= 21) {
+            concludeGame(game, cardSeed);
         }
         emit ProcessEvents(game.id, game.round);
     }
 
-    function stand(uint256 _seed) public atStage(Stage.Play) {
+    function stand() public atStage(Stage.Play) {
         Game storage game = games[msg.sender];
-        seed += _seed;
-        concludeGame(game);
+        uint256 cardSeed = uint256(keccak256(players[game.id].seed, dealers[game.id].seed, now));
+        concludeGame(game, cardSeed);
         emit ProcessEvents(game.id, game.round);
     }
 
     function dealCards(Game storage game) private atStage(Stage.Play) {
-        drawCard(game, players[game.id]);
-        drawCard(game, dealers[game.id]);
-        drawCard(game, players[game.id]);
+        uint256 cardSeed = uint256(keccak256(players[game.id].seed, dealers[game.id].seed, now));
+
+        drawCard(game, players[game.id], uint8((cardSeed & 255) % 52 % 13));
+        drawCard(game, dealers[game.id], uint8(((cardSeed >> 2) & 255) % 52 % 13));
+        drawCard(game, players[game.id], uint8(((cardSeed >> 4) & 255) % 52 % 13));
     }
 
-    /* TODO: Check for card repeatation */
-    function drawCard(Game game, Player storage player) private returns (uint256) {
-        uint64 _now = uint64(now);
-
-        // Drawing card by generating a random index in a set of NUMBER_OF_DECKS deck
-        uint256 card = ((player.seed * seed).add(_now)) % (NUMBER_OF_DECKS*52);
-
-        // Modify seeds
-        player.seed = uint256(keccak256(player.seed, card, _now));
-        seed = uint256(keccak256(seed, card, _now));
-
-        // Push the card index to player hand
+    function drawCard(Game game, Player storage player, uint8 card) private {
         player.hand.push(card);
-
-        // Recalculate player score
-        card = card % 52 % 13;
-        if (card == 0) {
-            player.score = recalculate(player);
-        } else {
-            player.score += cardPoints[card];
-        }
-
-        emit CardDrawn(game.id, game.round, card, player.score, player.bet == 0);
-
-        return card;
+        player.score += cardPoints[card];
+        if (card == 0) player.numberOfAces++;
+        emit CardDrawn(game.id, game.round, card, player.bet == 0);
     }
 
-    function recalculate(Player player) private view returns (uint8 score) {
-		uint8 numberOfAces = 0;
-        for (uint8 i = 0; i < player.hand.length; i++) {
-            uint8 card = (uint8) (player.hand[i] % 52 % 13);
-			score += cardPoints[card];
-            if (card == 0) numberOfAces++;
-        }
+    function getScore(Player player) private pure returns (uint8 score) {
+        score = player.score;
+        uint8 numberOfAces = player.numberOfAces;
         while (numberOfAces > 0 && score > 21) {
             score -= 10;
             numberOfAces--;
         }
     }
 
-    function concludeGame(Game storage game) private {
-        uint256 payout = calculatePayout(game);
+    function concludeGame(Game storage game, uint256 cardSeed) private {
+        uint256 payout = calculatePayout(game, cardSeed);
         if (payout != 0) {
             msg.sender.transfer(payout);
         }
-        emit Result(game.id, game.round, payout, players[game.id].score, dealers[game.id].score);
+        emit Result(game.id, game.round, payout, getScore(players[game.id]), getScore(dealers[game.id]));
 
         reset(game);
     }
 
-    function calculatePayout(Game storage game) private returns (uint256 payout) {
+    function calculatePayout(Game storage game, uint256 cardSeed) private returns (uint256 payout) {
         Player storage player = players[game.id];
         Player storage dealer = dealers[game.id];
         // Player busted
-        if (player.score > 21) {
+        if (getScore(player) > 21) {
             payout = 0;
         } else {
-            bool dealerHasBJ = drawDealerCards(game);
+            bool dealerHasBJ = drawDealerCards(game, cardSeed);
 
             // Player has BlackJack but dealer does not.
             if (player.score == 21 && player.hand.length == 2 && !dealerHasBJ) {
@@ -1118,17 +1095,17 @@ contract TrueDeckBlackJack is Ownable {
         }
     }
 
-    function drawDealerCards(Game storage game) private returns (bool) {
+    function drawDealerCards(Game storage game, uint256 cardSeed) private returns (bool) {
         Player storage dealer = dealers[game.id];
-        // Draw dealer's next card to check for BlackJack
-        drawCard(game, dealer);
-        if (dealer.score == 21) {
+        drawCard(game, dealer, uint8((cardSeed & 255) % 52 % 13));
+        if (getScore(dealer) == 21) {
             return true;
         }
 
         // Dealer must draw to 16 and stand on all 17's
-        while (dealer.score < 17) {
-            drawCard(game, dealer);
+        while (getScore(dealer) < 17) {
+            cardSeed = cardSeed >> 2;
+            drawCard(game, dealer, uint8((cardSeed & 255) % 52 % 13));
         }
 
         return false;
