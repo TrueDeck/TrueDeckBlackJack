@@ -879,11 +879,11 @@ contract TrueDeckBlackJack is Ownable {
     using strings for *;
     using SafeMath for uint256;
 
-    event StageChanged(bytes32 gameId, uint64 round, Stage newStage);
-    event NewRound(bytes32 gameId, uint64 round, address player, uint256 bet);
-    event CardDrawn(bytes32 gameId, uint64 round, uint256 card, bool isDealer);
+    event FutureBlock(uint256 blockNumber);
     event Result(bytes32 gameId, uint64 round, uint256 payout, uint8 playerScore, uint8 dealerScore);
-    event ProcessEvents(bytes32 gameId, uint64 round);
+
+    event Info(string message);
+    event Error(uint8 errorCode);
 
     enum Stage {
         SitDown,
@@ -893,17 +893,21 @@ contract TrueDeckBlackJack is Ownable {
 
     struct Game {
         bytes32 id;
-        uint256 blockNumber;
+        uint256 startBlock;
         uint64 round;
         Stage stage;
+        uint256 credits;
+
+        uint256 bet;
+        uint256 seedhash;
+        uint256[] blocks;
+        uint8[] actions;        // 1-Deal, 2-Hit, 3-Stand
     }
 
-    struct Player {
-        uint256 bet;
-        uint256 seed;
-        uint8[] hand;
+    struct Hand {
+        uint256 score;
+        uint8 length;
         uint8 numberOfAces;
-        uint8 score;
     }
 
     uint8[13] cardPoints = [11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
@@ -912,42 +916,24 @@ contract TrueDeckBlackJack is Ownable {
 
     mapping(address => Game) public games;
 
-    mapping(bytes32 => Player) public dealers;
-
-    mapping(bytes32 => Player) public players;
-
-    uint256 seed = uint256(keccak256("TrueDeck BlackJack Initial Seed"));
-
     constructor() public {
-        seed += now;
+
     }
 
-    function getRoundBlockNumber() public view returns (uint256 blockNumber) {
-        return games[msg.sender].blockNumber;
+    function getRoundBlockNumber() public view returns (uint256 startBlock) {
+        return games[msg.sender].startBlock;
     }
 
-    function getHandState(Player player) private view returns (string handState) {
-        string memory temp = "";
-        for (uint8 i = 0; i < player.hand.length; i++) {
-            uint8 card = player.hand[i];
-			temp = temp.toSlice().concat(cardRanks[card].toSlice());
-			temp = temp.toSlice().concat(",".toSlice());
-        }
-        handState = temp;
+    function getCredits() private view returns (uint256) {
+        return games[msg.sender].credits;
     }
 
-    function getGameState() public view returns (bytes32 gameId, uint256 blockNumber, uint64 round, Stage stage, uint8 dealerScore, string dealerHand, uint8 playerScore, string playerHand) {
+    function getGameState() public view returns (bytes32 gameId, uint256 startBlock, uint64 round, Stage stage) {
         Game storage game = games[msg.sender];
         gameId = game.id;
-        blockNumber = game.blockNumber;
+        startBlock = game.startBlock;
         round = game.round;
         stage = game.stage;
-
-        dealerScore = getScore(dealers[gameId]);
-        playerScore = getScore(players[gameId]);
-
-        dealerHand = getHandState(dealers[gameId]);
-        playerHand = getHandState(players[gameId]);
     }
 
     modifier atStage(Stage _stage) {
@@ -958,157 +944,152 @@ contract TrueDeckBlackJack is Ownable {
         _;
     }
 
-    function nextStage(Game storage game) internal {
-        game.stage = Stage(uint256(game.stage) + 1);
-        emit StageChanged(game.id, game.round, game.stage);
+    modifier atNotStage(Stage _stage) {
+        require(
+            games[msg.sender].stage != _stage,
+            "Function cannot be called at this time."
+        );
+        _;
     }
 
-    function reset(Game storage game) internal {
+    function nextStage(Game storage game) private {
+        game.stage = Stage(uint8(game.stage) + 1);
+    }
+
+    function reset(Game storage game) private {
         game.stage = Stage.Bet;
-        emit StageChanged(game.id, game.round, game.stage);
-        players[game.id].bet = 0;
-        players[game.id].score = 0;
-        dealers[game.id].score = 0;
-        delete players[game.id].hand;
-        delete dealers[game.id].hand;
-        players[game.id].numberOfAces = 0;
-        dealers[game.id].numberOfAces = 0;
+        game.bet = 0;
+        game.seedhash = 0;
+        delete game.blocks;
+        delete game.actions;
     }
 
-    function initGame(uint256 _seed) public atStage(Stage.SitDown) {
-        bytes32 id = keccak256(abi.encodePacked(block.timestamp, msg.sender, msg.data));                                                    // solium-disable-line
+    function initGame() public atStage(Stage.SitDown) {
+        bytes32 gameID = keccak256(abi.encodePacked(block.timestamp, msg.sender));
 
-        seed += _seed;
-
-        games[msg.sender] = Game(id, block.number, 0, Stage.SitDown);
-        dealers[id] = Player(0, 0, new uint8[](0), 0, 0);
-        players[id] = Player(0, 0, new uint8[](0), 0, 0);
+        games[msg.sender] = Game({
+                                id: gameID,
+                                round: 0,
+                                startBlock: block.number,
+                                stage: Stage.SitDown,
+                                credits: 1000,
+                                bet: 0,
+                                seedhash: 0,
+                                blocks: new uint256[](0),
+                                actions: new uint8[](0)
+                            });
 
         nextStage(games[msg.sender]);
-        emit ProcessEvents(games[msg.sender].id, games[msg.sender].round);
     }
 
-    function newRound(uint256 _seed) public payable atStage(Stage.Bet) {
+    function newRound(uint256 _seedhash, uint256 bet) public atNotStage(Stage.SitDown) {
         Game storage game = games[msg.sender];
 
-        seed += _seed;
+        game.seedhash = _seedhash;
+        game.bet = bet;
+        game.credits = game.credits.sub(bet);
 
-        uint64 _now = uint64(now);
-        dealers[game.id].seed = uint256(keccak256(abi.encodePacked(seed, _now)));
-        players[game.id].seed = uint256(keccak256(abi.encodePacked(_seed, _now)));
-
-        players[game.id].bet = msg.value;
         game.round++;
-        game.blockNumber = block.number;
-
-        emit NewRound(game.id, game.round, msg.sender, msg.value);
+        game.startBlock = block.number;
 
         nextStage(game);
-        dealCards(game);
-        emit ProcessEvents(game.id, game.round);
-    }
-
-    function addBet() payable public {
-        Game storage game = games[msg.sender];
-        Player storage player = players[game.id];
-        player.bet = player.bet.add(msg.value);
-    }
-
-    function() public payable onlyOwner {
-
+        fixFutureBlock(game, 1);    // ACTION: DEAL
     }
 
     function hit() public atStage(Stage.Play) {
         Game storage game = games[msg.sender];
-        Player storage player = players[game.id];
-
-        uint256 cardSeed = uint256(keccak256(abi.encodePacked(player.seed, dealers[game.id].seed, now)));
-        drawCard(game, player, uint8((cardSeed & 255) % 52 % 13));
-
-        if (getScore(player) >= 21) {
-            concludeGame(game, cardSeed);
-        }
-        emit ProcessEvents(game.id, game.round);
+        fixFutureBlock(game, 2);    // ACTION: HIT
     }
 
     function stand() public atStage(Stage.Play) {
         Game storage game = games[msg.sender];
-        uint256 cardSeed = uint256(keccak256(abi.encodePacked(players[game.id].seed, dealers[game.id].seed, now)));
-        concludeGame(game, cardSeed);
-        emit ProcessEvents(game.id, game.round);
+        fixFutureBlock(game, 3);    // ACTION: STAND
     }
 
-    function dealCards(Game storage game) private atStage(Stage.Play) {
-        uint256 cardSeed = uint256(keccak256(abi.encodePacked(players[game.id].seed, dealers[game.id].seed, now)));
-
-        drawCard(game, players[game.id], uint8((cardSeed & 255) % 52 % 13));
-        drawCard(game, dealers[game.id], uint8(((cardSeed >> 2) & 255) % 52 % 13));
-        drawCard(game, players[game.id], uint8(((cardSeed >> 4) & 255) % 52 % 13));
+    function fixFutureBlock(Game storage game, uint8 action) private {
+        game.blocks.push(block.number+1);
+        game.actions.push(action);
+        emit FutureBlock(block.number+1);
     }
 
-    function drawCard(Game game, Player storage player, uint8 card) private {
-        player.hand.push(card);
-        player.score += cardPoints[card];
-        if (card == 0) player.numberOfAces++;
-        emit CardDrawn(game.id, game.round, card, player.bet == 0);
+    function claim(uint256 seed) public atStage(Stage.Play) {
+        Game storage game = games[msg.sender];
+
+        if (game.seedhash == keccak256(seed)) {
+            concludeGame(game, seed);
+            reset(game);
+        } else {
+            emit Error(105);
+        }
     }
 
-    function getScore(Player player) private pure returns (uint8 score) {
-        score = player.score;
-        uint8 numberOfAces = player.numberOfAces;
+    function concludeGame(Game storage game, uint256 seed) private {
+        Hand memory playerHand = Hand(0, 0);
+        Hand memory dealerHand = Hand(0, 0);
+
+        // Replay game actions
+        for (uint8 i = 0; i < game.blocks.length; i++) {
+            uint256 cardSeed = uint256(keccak256(abi.encodePacked(seed, block.blockhash(game.blocks[i]))));
+            switch (game.actions[i]) {
+                // DEAL
+                case 1:
+                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    drawCard(dealerHand, uint8(((cardSeed >> 2) & 255) % 13));
+                    drawCard(playerHand, uint8(((cardSeed >> 4) & 255) % 13));
+                    break;
+
+                // HIT
+                case 2:
+                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    break;
+
+                // STAND
+                case 3:
+                    drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+
+                    // Dealer must draw to 16 and stand on all 17's
+                    while (getScore(dealerHand) < 17) {
+                        cardSeed = cardSeed >> 2;
+                        drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                    }
+                    break;
+
+                default:
+                    emit Error(104);
+            }
+        }
+
+        uint8 playerScore = getScore(playerHand);
+        uint8 dealerScore = getScore(dealerHand);
+        uint256 payout = 0;
+
+        if ((playerScore == 21 && playerHand.length == 2) && !(dealerScore == 21 && dealerHand.length == 2)) {
+            payout = game.bet * 3;
+        } else if (playerScore > dealerScore || dealerScore > 21) {
+            payout = game.bet * 2;
+        } else if (player.score == dealer.score) {
+            payout = game.bet;
+        }
+
+        game.credits = game.credits.add(payout);
+
+        emit Result(game.id, game.round, payout, playerScore, dealerScore);
+    }
+
+    function drawCard(Hand hand, card) private {
+        hand.length++;
+        hand.score += cardPoints[card];
+        if (card == 0) hand.numberOfAces++;
+    }
+
+    function getScore(Hand hand) private pure returns (uint8) {
+        uint8 score = hand.score;
+        uint8 numberOfAces = hand.numberOfAces;
         while (numberOfAces > 0 && score > 21) {
             score -= 10;
             numberOfAces--;
         }
-    }
-
-    function concludeGame(Game storage game, uint256 cardSeed) private {
-        uint256 payout = calculatePayout(game, cardSeed);
-        if (payout != 0) {
-            msg.sender.transfer(payout);
-        }
-        emit Result(game.id, game.round, payout, getScore(players[game.id]), getScore(dealers[game.id]));
-
-        reset(game);
-    }
-
-    function calculatePayout(Game storage game, uint256 cardSeed) private returns (uint256 payout) {
-        Player storage player = players[game.id];
-        Player storage dealer = dealers[game.id];
-        // Player busted
-        if (getScore(player) > 21) {
-            payout = 0;
-        } else {
-            bool dealerHasBJ = drawDealerCards(game, cardSeed);
-
-            // Player has BlackJack but dealer does not.
-            if (player.score == 21 && player.hand.length == 2 && !dealerHasBJ) {
-                // Pays 2 to 1
-                payout = player.bet * 3;
-            } else if (player.score > dealer.score || dealer.score > 21) {
-                payout = player.bet * 2;
-            } else if (player.score == dealer.score) {
-                payout = player.bet;
-            } else {
-                payout = 0;
-            }
-        }
-    }
-
-    function drawDealerCards(Game storage game, uint256 cardSeed) private returns (bool) {
-        Player storage dealer = dealers[game.id];
-        drawCard(game, dealer, uint8((cardSeed & 255) % 52 % 13));
-        if (getScore(dealer) == 21) {
-            return true;
-        }
-
-        // Dealer must draw to 16 and stand on all 17's
-        while (getScore(dealer) < 17) {
-            cardSeed = cardSeed >> 2;
-            drawCard(game, dealer, uint8((cardSeed & 255) % 52 % 13));
-        }
-
-        return false;
+        return score;
     }
 
     function uint2str(uint i) internal pure returns (string) {

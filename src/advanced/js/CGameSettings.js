@@ -1,10 +1,10 @@
 function CGameSettings(){
-    
+
     var _aCardDeck;
     var _aShuffledCardDecks;
     var _aCardValue;
     var _aFichesValue;
-    
+
     this._init = function(){
         _aCardValue=new Array();
         _aCardDeck=new Array();
@@ -21,18 +21,18 @@ function CGameSettings(){
                 _aCardValue.push(iRest);
             }
         }
-        
-        _aFichesValue=new Array(0.1,1,5,10,25,100);
+
+        _aFichesValue=new Array(1,5,10,25,100);
     };
-		
+
     this.getFichesValues = function(){
             return _aFichesValue;
     };
-		
+
     this.getFichesValueAt = function(iIndex){
             return _aFichesValue[iIndex];
     };
-		
+
     this.getIndexForFiches = function(iValue){
         var iRes=0;
         for(var i=0;i<_aFichesValue.length;i++){
@@ -40,9 +40,9 @@ function CGameSettings(){
                         iRes=i;
                 }
         }
-        return iRes; 
+        return iRes;
     };
-		
+
     this.generateFichesPile = function(iFichesValue){
         var aFichesPile=new Array();
         var iValueRest;
@@ -67,8 +67,8 @@ function CGameSettings(){
 
         return aFichesPile;
     };
-		
-    this.timeToString = function( iMillisec ){		
+
+    this.timeToString = function( iMillisec ){
         iMillisec = Math.round((iMillisec/1000));
 
         var iMins = Math.floor(iMillisec/60);
@@ -86,11 +86,11 @@ function CGameSettings(){
                 szRet += "0" + iSecs;
         }else{
                 szRet += iSecs;
-        } 
+        }
 
-        return szRet;   
+        return szRet;
     };
-		
+
     this.getShuffledCardDeck = function(){
         var aTmpDeck=new Array();
 
@@ -102,14 +102,14 @@ function CGameSettings(){
         while (aTmpDeck.length > 0) {
                 _aShuffledCardDecks.push(aTmpDeck.splice(Math.round(Math.random() * (aTmpDeck.length - 1)), 1)[0]);
         }
-        
-        return _aShuffledCardDecks;	
+
+        return _aShuffledCardDecks;
     };
-		
+
     this.getCardValue = function(iId){
             return _aCardValue[iId];
     };
-    
+
     this.getRandDealerPattern = function(){
         var iTotValue;
         var aTmpCards;
@@ -118,18 +118,18 @@ function CGameSettings(){
         do{
             aTmpCards = new Array();
             iTotValue = 0;
-            
+
             for(var i=0;i<2;i++){
                 do{
                     var iRandCard = Math.floor(Math.random() * 52);
                 }while(this.getCardValue(iRandCard) === 11);
-                
+
                 iTotValue += this.getCardValue(iRandCard);
                 aTmpCards.push(iRandCard);
             }
-            
+
         }while(iTotValue < 12 || iTotValue > 16);
-        
+
         var iDiff = 21 - iTotValue;
 
         var iLastCard;
@@ -137,10 +137,10 @@ function CGameSettings(){
             iLastCard = Math.floor(Math.random() * 52);
         }while(this.getCardValue(iLastCard) <= iDiff || this.getCardValue(iLastCard) === 11);
 
-        aTmpCards.push(iLastCard); 
-        
+        aTmpCards.push(iLastCard);
+
         return aTmpCards;
     };
-                
+
     this._init();
 }

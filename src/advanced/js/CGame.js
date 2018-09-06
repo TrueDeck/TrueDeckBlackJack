@@ -37,8 +37,6 @@ function CGame(oData){
           // Setting initial State
           DApp.state = {
               blockCursor: 0,
-              totalEvents: -1,
-              eventLogs: [],
               web3: null,
               blackjack: null,
 
@@ -46,13 +44,6 @@ function CGame(oData){
               blockNumber: null,
               round: null,
               stage: 0,
-              dealerScore: 0,
-              dealerHand: null,
-              playerScore: 0,
-              playerHand: null,
-
-              betValue: 0,
-              result: null,
               callback: null
           };
 
@@ -90,145 +81,44 @@ function CGame(oData){
 
       watchEvents: function(error, eventLog) {
           if (error) {
+              console.log("xxxxx ERROR : " + eventLog.event + " xxxxx");
               console.log(error);
+              console.log("xxxxx END   : " + eventLog.event + " xxxxx");
           } else {
-              if (DApp.state.blockCursor >= eventLog.blockNumber) {
-                  console.log("-- processed event " + eventLog.event);
-                  return;
+              switch (eventLog.event) {
+                    case "FutureBlock":
+                        console.log("===== EVENT : " + eventLog.event + " =====");
+                        console.log("      #: " + eventLog.logIndex);
+                        console.log("Block #: " + eventLog.args.blockNumber.toNumber());
+                        console.log("===== END   : " + eventLog.event + " =====");
+                        break;
+
+                    case "Result":
+                        console.log("===== EVENT : " + eventLog.event + " =====");
+                        console.log("     #: " + eventLog.logIndex);
+                        console.log("    ID: " + eventLog.args.gameId);
+                        console.log(" Round: " + eventLog.args.round.toNumber());
+                        console.log("Payout: " + eventLog.args.payout.toNumber());
+                        console.log("PScore: " + eventLog.args.playerScore.toNumber());
+                        console.log("DScore: " + eventLog.args.dealerScore.toNumber());
+                        console.log("===== END   : " + eventLog.event + " =====");
+                        break;
+
+                    case "Info":
+                        console.log("+++++ Info : " + eventLog.event + " +++++");
+                        console.log("      #: " + eventLog.logIndex);
+                        console.log("Message: " + eventLog.args.errorCode);
+                        console.log("+++++ END   : " + eventLog.event + " +++++");
+                        break;
+
+                    case "Error":
+                        console.log("xxxxx ERROR : " + eventLog.event + " xxxxx");
+                        console.log("   #: " + eventLog.logIndex);
+                        console.log("Code: " + eventLog.args.errorCode);
+                        console.log("xxxxx END   : " + eventLog.event + " xxxxx");
+                        break;
               }
-
-              // if (eventLog.event === "ProcessEvents") {
-              //     DApp.state.totalEvents = eventLog.logIndex + 1;
-              // }
-              //
-              // var newEventLogs = DApp.state.eventLogs.slice();
-              // newEventLogs.splice(eventLog.logIndex, 0, eventLog);
-              // DApp.state.eventLogs = newEventLogs;
-              //
-              // if (DApp.state.eventLogs.length === DApp.state.totalEvents) {
-              //     var prevEventLogs = DApp.state.eventLogs.slice();
-              //     DApp.state.totalEvents = -1;
-              //     DApp.state.eventLogs = [];
-              //     DApp.state.blockCursor = eventLog.blockNumber;
-              //     DApp.processEvents(prevEventLogs);
-              // }
-
-              var newEventLogs = DApp.state.eventLogs.slice();
-              newEventLogs.splice(eventLog.logIndex, 0, eventLog);
-              DApp.state.eventLogs = newEventLogs;
-
-              if (eventLog.event === "ProcessEvents") {
-                  var prevEventLogs = DApp.state.eventLogs.slice();
-                  DApp.state.totalEvents = -1;
-                  DApp.state.eventLogs = [];
-                  DApp.state.blockCursor = eventLog.blockNumber;
-                  DApp.processEvents(prevEventLogs);
-              }
           }
-      },
-
-      processEvents: function(eventLogs) {
-          console.log("************** Processing Event Logs **************");
-          while (eventLogs.length !== 0) {
-              var eventLog = eventLogs.shift();
-              DApp.processEvent(eventLog);
-          }
-      },
-
-      processEvent: function(eventLog) {
-          console.log("===== " + eventLog.event + " =====");
-
-          switch (eventLog.event) {
-              case "StageChanged":
-                  console.log("#:     " + eventLog.logIndex);
-                  console.log("ID:    " + eventLog.args.gameId);
-                  console.log("round: " + eventLog.args.round.toNumber());
-                  var stage = eventLog.args.newStage.toNumber();
-                  console.log("stage: " + DApp.getStage(stage));
-                  break;
-
-              case "NewRound":
-                  console.log("#:       " + eventLog.logIndex);
-                  console.log("ID:      " + eventLog.args.gameId);
-                  console.log("round:   " + eventLog.args.round.toNumber());
-                  console.log("address: " + eventLog.args.player);
-                  console.log("bet:     " + eventLog.args.bet.toNumber());
-                  break;
-
-              case "CardDrawn":
-                  console.log("#:        " + eventLog.logIndex);
-                  console.log("ID:       " + eventLog.args.gameId);
-                  console.log("round:    " + eventLog.args.round.toNumber());
-                  console.log("card:     " + eventLog.args.card.toNumber());
-                  console.log("isDealer: " + eventLog.args.isDealer);
-
-                  s_oGame.cardDrawn(eventLog.args.card.toNumber(), eventLog.args.isDealer);
-                  break;
-
-              case "Result":
-                  var dealerScore = eventLog.args.dealerScore.toNumber();
-                  var playerScore = eventLog.args.playerScore.toNumber();
-                  var payout = eventLog.args.payout.toNumber();
-
-                  console.log("#:      " + eventLog.logIndex);
-                  console.log("ID:     " + eventLog.args.gameId);
-                  console.log("round:  " + eventLog.args.round.toNumber());
-                  console.log("payout: " + payout);
-                  console.log("pscore: " + playerScore);
-                  console.log("dscore: " + dealerScore);
-
-                  var r = ((payout !== 0) ? "You Won" : "You Lose")
-                    + ", round: " + eventLog.args.round.toNumber()
-                    + ", payout: " + eventLog.args.payout.toNumber()
-                    + ", pscore: " + playerScore
-                    + ", dscore: " + dealerScore;
-                  DApp.state.result = r;
-                  $('#result').text(DApp.state.result);
-                  break;
-
-              case "ProcessEvents":
-                  if (DApp.state.callback) {
-                      DApp.state.callback();
-                  }
-
-                  console.log("#:     " + eventLog.logIndex);
-                  console.log("ID:    " + eventLog.args.gameId);
-                  console.log("round: " + eventLog.args.round.toNumber());
-                  console.log("************** All Events Processed **************");
-
-                  DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                      return instance.getGameState.call()
-                  }).then(function(result) {
-                      console.log("===== Game State =====");
-                      console.log("ID:          " + result[0]);
-                      console.log("blockNumber:   " + result[1].toNumber());
-                      console.log("round:       " + result[2].toNumber());
-                      console.log("stage:       " + DApp.getStage(result[3].toNumber()));
-                      console.log("dealerScore: " + result[4].toNumber());
-                      console.log("dealerHand:   [" + result[5] + "]");
-                      console.log("playerScore: " + result[6].toNumber());
-                      console.log("playerHand:   [" + result[7] + "]");
-                      console.log("*-*-*-*-*-*-*-* FINISH *-*-*-*-*-*-*-*");
-                      console.log("\n\n\n");
-
-                      DApp.state.gameID = result[0];
-                      DApp.state.blockNumber = result[1].toNumber();
-                      DApp.state.round = result[2].toNumber();
-                      DApp.state.stage = result[3].toNumber();
-                      DApp.state.dealerScore = result[4].toNumber();
-                      DApp.state.dealerHand = result[5];
-                      DApp.state.playerScore = result[6].toNumber();
-                      DApp.state.playerHand = result[7];
-                  });
-                  break;
-
-             default:
-                console.log("Event not recognized!");
-          }
-      },
-
-      handleBetChange: function(event) {
-          DApp.state.betValue = event.target.value;
       },
 
       sitDown: function(callback) {
@@ -236,7 +126,7 @@ function CGame(oData){
           DApp.state.callback = callback;
           web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.initGame(0x323434dacef45608a5d378967809853, {from: accounts[0]});
+                  return instance.initGame({from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
               }).catch((err) => {
@@ -361,7 +251,7 @@ function CGame(oData){
         s_oStage.addChild(_oBg);
 
         _oSeat = new CSeat();
-        _oSeat.setCredit(TOTAL_MONEY);
+        _oSeat.setCredit(0);
         _oSeat.addEventListener(SIT_DOWN,this._onSitDown,this);
         _oSeat.addEventListener(RESTORE_ACTION,this._onSetPlayerActions);
         _oSeat.addEventListener(PASS_TURN,this._passTurnToDealer);
@@ -867,6 +757,10 @@ function CGame(oData){
         s_oInterface.disableBetFiches();
     }
 
+    this.setCredit = function(credit){
+        _oSeat.setCredit(credit);
+    }
+
     this.enableButtons = function(bDealBut,bHit,bStand,bDouble,bSplit){
         s_oInterface.enable(bDealBut,bHit,bStand,bDouble,bSplit);
     }
@@ -897,6 +791,11 @@ function CGame(oData){
 
     this._onSitDownComplete = function(){
         this.changeState(STATE_GAME_WAITING_FOR_BET);
+        DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+            return instance.getCredits.call();
+        }).then(function(credits) {
+            s_oGame.setCredit(credits);
+        });
         _oInterface.enableBetFiches();
     };
 
