@@ -976,7 +976,7 @@ contract TrueDeckBlackJack is Ownable {
     }
 
     function initGame(uint256 _seed) public atStage(Stage.SitDown) {
-        bytes32 id = keccak256(block.timestamp, msg.sender, msg.data);                                                    // solium-disable-line
+        bytes32 id = keccak256(abi.encodePacked(block.timestamp, msg.sender, msg.data));                                                    // solium-disable-line
 
         seed += _seed;
 
@@ -994,8 +994,8 @@ contract TrueDeckBlackJack is Ownable {
         seed += _seed;
 
         uint64 _now = uint64(now);
-        dealers[game.id].seed = uint256(keccak256(seed, _now));
-        players[game.id].seed = uint256(keccak256(_seed, _now));
+        dealers[game.id].seed = uint256(keccak256(abi.encodePacked(seed, _now)));
+        players[game.id].seed = uint256(keccak256(abi.encodePacked(_seed, _now)));
 
         players[game.id].bet = msg.value;
         game.round++;
@@ -1022,7 +1022,7 @@ contract TrueDeckBlackJack is Ownable {
         Game storage game = games[msg.sender];
         Player storage player = players[game.id];
 
-        uint256 cardSeed = uint256(keccak256(player.seed, dealers[game.id].seed, now));
+        uint256 cardSeed = uint256(keccak256(abi.encodePacked(player.seed, dealers[game.id].seed, now)));
         drawCard(game, player, uint8((cardSeed & 255) % 52 % 13));
 
         if (getScore(player) >= 21) {
@@ -1033,13 +1033,13 @@ contract TrueDeckBlackJack is Ownable {
 
     function stand() public atStage(Stage.Play) {
         Game storage game = games[msg.sender];
-        uint256 cardSeed = uint256(keccak256(players[game.id].seed, dealers[game.id].seed, now));
+        uint256 cardSeed = uint256(keccak256(abi.encodePacked(players[game.id].seed, dealers[game.id].seed, now)));
         concludeGame(game, cardSeed);
         emit ProcessEvents(game.id, game.round);
     }
 
     function dealCards(Game storage game) private atStage(Stage.Play) {
-        uint256 cardSeed = uint256(keccak256(players[game.id].seed, dealers[game.id].seed, now));
+        uint256 cardSeed = uint256(keccak256(abi.encodePacked(players[game.id].seed, dealers[game.id].seed, now)));
 
         drawCard(game, players[game.id], uint8((cardSeed & 255) % 52 % 13));
         drawCard(game, dealers[game.id], uint8(((cardSeed >> 2) & 255) % 52 % 13));

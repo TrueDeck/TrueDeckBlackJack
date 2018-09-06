@@ -70,7 +70,8 @@ function CCard(iX,iY,oContainer){
         _iState=STATE_CARD_DEALING;
     };
 
-    this.setCardValue = function(iValue){
+    this.setCard = function(szFotogram, iValue){
+        _szFotogram = szFotogram;
         _iValue=iValue;
     };
 

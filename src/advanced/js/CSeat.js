@@ -430,6 +430,10 @@ function CSeat(){
 
     };
 
+    this.showSitDownButton = function(){
+        _oSitDownBut.setVisible(true);
+    }
+
     this.hideSitDownButton = function(){
         _oSitDownBut.setVisible(false);
     }

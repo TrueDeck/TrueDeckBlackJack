@@ -3,8 +3,10 @@ function CGame(oData){
       web3Provider: null,
       contracts: {},
       state: {},
+      game: null,
 
-      init: function() {
+      init: function(s_oGame) {
+        DApp.game = s_oGame;
         return DApp.initWeb3();
       },
 
@@ -16,7 +18,7 @@ function CGame(oData){
           web3 = new Web3(web3.currentProvider);
         } else {
           // If no injected web3 instance is detected, fallback to Ganache.
-          DApp.web3Provider = new web3.providers.HttpProvider('http://127.0.0.1:7545');
+          DApp.web3Provider = new web3.providers.HttpProvider('http://127.0.0.1:8545');
           web3 = new Web3(DApp.web3Provider);
         }
 
@@ -95,15 +97,27 @@ function CGame(oData){
                   return;
               }
 
-              if (eventLog.event === "ProcessEvents") {
-                  DApp.state.totalEvents = eventLog.logIndex + 1;
-              }
+              // if (eventLog.event === "ProcessEvents") {
+              //     DApp.state.totalEvents = eventLog.logIndex + 1;
+              // }
+              //
+              // var newEventLogs = DApp.state.eventLogs.slice();
+              // newEventLogs.splice(eventLog.logIndex, 0, eventLog);
+              // DApp.state.eventLogs = newEventLogs;
+              //
+              // if (DApp.state.eventLogs.length === DApp.state.totalEvents) {
+              //     var prevEventLogs = DApp.state.eventLogs.slice();
+              //     DApp.state.totalEvents = -1;
+              //     DApp.state.eventLogs = [];
+              //     DApp.state.blockCursor = eventLog.blockNumber;
+              //     DApp.processEvents(prevEventLogs);
+              // }
 
               var newEventLogs = DApp.state.eventLogs.slice();
               newEventLogs.splice(eventLog.logIndex, 0, eventLog);
               DApp.state.eventLogs = newEventLogs;
 
-              if (DApp.state.eventLogs.length === DApp.state.totalEvents) {
+              if (eventLog.event === "ProcessEvents") {
                   var prevEventLogs = DApp.state.eventLogs.slice();
                   DApp.state.totalEvents = -1;
                   DApp.state.eventLogs = [];
@@ -225,18 +239,25 @@ function CGame(oData){
                   return instance.initGame(0x323434dacef45608a5d378967809853, {from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
+              }).catch((err) => {
+                  console.log("SitDown Failed: " + err);
+                  DApp.game.showSitDownButton();
               });
           });
       },
 
-      deal: function(callback) {
+      deal: function(betValue, callback) {
           console.log("===== deal =====");
           DApp.state.callback = callback;
           web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.newRound(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0], value: 3000000000000000000});
+                  return instance.newRound(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0], value: betValue * Math.pow(10,18)});
               }).then(function(result) {
                   console.log(result);
+              }).catch((err) => {
+                  console.log("Deal Failed: " + err);
+                  DApp.game.enableBetFiches();
+                  DApp.game.enableButtons(true,false,false,false,false);
               });
           });
       },
@@ -249,6 +270,9 @@ function CGame(oData){
                   return instance.hit({from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
+              }).catch((err) => {
+                  console.log("Hit Failed: " + err);
+                  DApp.game.enableButtons(false,true,true,false,false);
               });
           });
       },
@@ -261,6 +285,9 @@ function CGame(oData){
                   return instance.stand({from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
+              }).catch((err) => {
+                  console.log("Stand Failed: " + err);
+                  DApp.game.enableButtons(false,true,true,false,false);
               });
           });
       },
@@ -325,7 +352,7 @@ function CGame(oData){
         _iTimeElaps = 0;
         _iAdsCounter = 0;
 
-        DApp.init();
+        DApp.init(s_oGame);
 
         s_oTweenController = new CTweenController();
 
@@ -369,10 +396,10 @@ function CGame(oData){
     	_oGameOverPanel = new CGameOver();
     	_oMsgBox = new CMsgBox();
 
-        if(_oSeat.getCredit()<s_oGameSettings.getFichesValueAt(0)){
+        if (_oSeat.getCredit()<s_oGameSettings.getFichesValueAt(0)){
                     this._gameOver();
                     this.changeState(-1);
-        }else{
+        } else {
             _bUpdate = true;
         }
 
@@ -382,12 +409,12 @@ function CGame(oData){
     this.unload = function(){
 	_bUpdate = false;
 
-        for(var i=0;i<_aCardsDealing.length;i++){
+        for (var i=0;i<_aCardsDealing.length;i++){
             _aCardsDealing[i].unload();
         }
 
         var aCards=_oSeat.getPlayerCards();
-        for(var k=0;k<aCards.length;k++){
+        for (var k=0;k<aCards.length;k++){
                 aCards[k].unload();
         }
 
@@ -428,7 +455,7 @@ function CGame(oData){
         _iNextCardForDealer=0;
 
         _aCardOut = new Array();
-        for(var k=0;k<52*2;k++){
+        for (var k=0;k<52*2;k++){
             _aCardOut[k] = 0;
         }
     };
@@ -447,8 +474,8 @@ function CGame(oData){
     };
 
     this._checkIfDealerPatternCanBeUsed = function(aTmpDealerPattern){
-        for(var i=0;i<aTmpDealerPattern.length;i++){
-            if(_aCardOut[aTmpDealerPattern[i]] > 1){
+        for (var i=0;i<aTmpDealerPattern.length;i++){
+            if (_aCardOut[aTmpDealerPattern[i]] > 1){
                 return false;
             }
         }
@@ -459,14 +486,14 @@ function CGame(oData){
     this.attachCardToDeal = function(pStartingPoint,pEndingPoint,bDealer,iCardCount){
             var oCard = new CCard(_oStartingCardOffset.getX(),_oStartingCardOffset.getY(),_oCardContainer);
             var iCard;
-            if(bDealer){
+            if (bDealer){
                 // DEALER CARDS
                  iCard = _aCardsInCurHandForDealer[_iNextCardForDealer];
                 _iNextCardForDealer++;
 
                 oCard.setInfo(pStartingPoint,pEndingPoint,iCard,s_oGameSettings.getCardValue(iCard),bDealer,iCardCount);
                 _aCardOut[iCard] += 1;
-            }else{
+            } else {
                 // PLAYER CARDS
                 iCard = _aCardsInCurHandForPlayer[_iNextCardForPlayer];
                 _iNextCardForPlayer++;
@@ -479,46 +506,46 @@ function CGame(oData){
 
             _aCardsDealing.push(oCard);
 
-            if(DISABLE_SOUND_MOBILE === false || s_bMobile === false){
+            if (DISABLE_SOUND_MOBILE === false || s_bMobile === false){
                 playSound("card", 1, 0);
             }
     };
 
     this.cardFromDealerArrived = function(oCard,bDealerCard,iCount){
-        for(var i=0;i<_aCardsDealing.length;i++){
-                if(_aCardsDealing[i] === oCard){
+        for (var i=0;i<_aCardsDealing.length;i++){
+                if (_aCardsDealing[i] === oCard){
                         _aCardsDealing.splice(i,1);
                         break;
                 }
         }
 
-        if(bDealerCard === false){
+        if (bDealerCard === false){
             _oSeat.addCardToHand(oCard);
             _oSeat.increaseHandValue(oCard.getValue());
-            if(iCount>2){
+            if (iCount>2){
                 _oSeat.refreshCardValue();
             }
-        }else{
+        } else {
             var dealerCardValue = oCard.getValue();
             if (dealerCardValue) {
                 _iDealerValueCard += dealerCardValue;
             }
-            if(_iCardDealedToDealer > 2){
+            if (_iCardDealedToDealer > 2){
                 _oInterface.refreshDealerCardValue(_iDealerValueCard);
             }
-            if(oCard.getValue() === 11){
+            if (oCard.getValue() === 11){
                 _iAcesForDealer++;
             }
 
             _aDealerCards.push(oCard);
         }
 
-        if(iCount<3){
+        if (iCount<3){
                 s_oGame._dealing();
-        }else{
+        } else {
 
                 s_oGame._checkHand();
-                if( bDealerCard === false && _bDoubleForPlayer){
+                if ( bDealerCard === false && _bDoubleForPlayer){
                     _bDoubleForPlayer = false;
                     s_oGame._onStandPlayer();
                 }
@@ -528,54 +555,53 @@ function CGame(oData){
     this._onStandPlayer = function(){
         _oSeat.stand();
     };
-
-    this._checkHand = function(){
+    this._checkHand = function() {
         var i;
 
-        if(_bPlayerTurn){
-                _oSeat.checkHand();
-        }else{
+        if (_bPlayerTurn) {
+            _oSeat.checkHand();
+        } else {
             _oInterface.refreshDealerCardValue(_iDealerValueCard);
-            if(_iDealerValueCard === 21){
-                if(_iInsuranceBet > 0 && _aDealerCards.length === 2){
-                    _oSeat.increaseCredit((_iInsuranceBet*2));
-                    _iGameCash -= (_iInsuranceBet*2);
+            if (_iDealerValueCard === 21) {
+                if (_iInsuranceBet > 0 && _aDealerCards.length === 2) {
+                    _oSeat.increaseCredit((_iInsuranceBet * 2));
+                    _iGameCash -= (_iInsuranceBet * 2);
 
                     _oInterface.refreshCredit(_oSeat.getCredit());
 
-                    for(i=0;i<_oSeat.getNumHands();i++){
+                    for (i = 0; i < _oSeat.getNumHands(); i++) {
                         this._playerLose(i);
                     }
-                }else{
-                    for(i=0;i<_oSeat.getNumHands();i++){
+                } else {
+                    for (i = 0; i < _oSeat.getNumHands(); i++) {
                         this._playerLose(i);
                     }
                 }
 
-            }else if(_iDealerValueCard>21){
-                    if(_iAcesForDealer>0){
-                            _iAcesForDealer--;
-                            _iDealerValueCard -= 10;
-                            _oInterface.refreshDealerCardValue(_iDealerValueCard);
-                            if(_iDealerValueCard<17){
-                                this.hitDealer();
-                            }else{
-                                this._checkWinner();
-                            }
-                    }else{
+            } else if (_iDealerValueCard > 21) {
+                if (_iAcesForDealer > 0) {
+                    _iAcesForDealer--;
+                    _iDealerValueCard -= 10;
+                    _oInterface.refreshDealerCardValue(_iDealerValueCard);
+                    if (_iDealerValueCard < 17) {
+                        this.hitDealer();
+                    } else {
                         this._checkWinner();
                     }
-            }else if(_iDealerValueCard<17){
-                    this.hitDealer();
-            }else{
+                } else {
                     this._checkWinner();
+                }
+            } else if (_iDealerValueCard < 17) {
+                this.hitDealer();
+            } else {
+                this._checkWinner();
             }
         }
     };
 
     this._playerWin = function(iHand){
         var iMult = 1;
-        if(_oSeat.getHandValue(iHand) === 21 && _oSeat.getNumCardsForHand(iHand) === 2){
+        if (_oSeat.getHandValue(iHand) === 21 && _oSeat.getNumCardsForHand(iHand) === 2){
             iMult =  BLACKJACK_PAYOUT;
         }
 
@@ -589,9 +615,9 @@ function CGame(oData){
 
         _oSeat.initMovement(iHand,_oReceiveWinOffset.getX(),_oReceiveWinOffset.getY());
 
-        if(_iDealerValueCard === 21){
+        if (_iDealerValueCard === 21){
             _oSeat.initInsuranceMov(_oReceiveWinOffset.getX(),_oReceiveWinOffset.getY());
-        }else{
+        } else {
             _oSeat.initInsuranceMov(_oFichesDealerOffset.getX(),_oFichesDealerOffset.getY());
         }
     };
@@ -602,9 +628,9 @@ function CGame(oData){
 
         _oSeat.initMovement(iHand,_oFichesDealerOffset.getX(),_oFichesDealerOffset.getY());
 
-        if(_iDealerValueCard === 21){
+        if (_iDealerValueCard === 21){
             _oSeat.initInsuranceMov(_oReceiveWinOffset.getX(),_oReceiveWinOffset.getY());
-        }else{
+        } else {
             _oSeat.initInsuranceMov(_oFichesDealerOffset.getX(),_oFichesDealerOffset.getY());
         }
     };
@@ -618,27 +644,24 @@ function CGame(oData){
 
         _oSeat.initMovement(iHand,_oReceiveWinOffset.getX(),_oReceiveWinOffset.getY());
 
-        if(_iDealerValueCard === 21){
+        if (_iDealerValueCard === 21){
             _oSeat.initInsuranceMov(_oReceiveWinOffset.getX(),_oReceiveWinOffset.getY());
-        }else{
+        } else {
             _oSeat.initInsuranceMov(_oFichesDealerOffset.getX(),_oFichesDealerOffset.getY());
         }
     };
 
     this._dealing = function(){
-        console.log("in dealing...");
-        if(_iCardIndexToDeal<_aCurActiveCardOffset.length*2){
+        if (_iCardIndexToDeal<_aCurActiveCardOffset.length*2){
                 var oCard = new CCard(_oStartingCardOffset.getX(),_oStartingCardOffset.getY(),_oCardContainer);
 
                 var pStartingPoint = new CVector2(_oStartingCardOffset.getX(),_oStartingCardOffset.getY());
                 var pEndingPoint;
 
                 //THIS CARD IS FOR THE DEALER
-                if((_iCardIndexToDeal%_aCurActiveCardOffset.length) === 1){
-                    console.log("dealer card");
+                if ((_iCardIndexToDeal%_aCurActiveCardOffset.length) === 1){
                     _iCardDealedToDealer++;
                     pEndingPoint=new CVector2(_oDealerCardOffset.getX()+(CARD_WIDTH+2)*(_iCardIndexToDeal > 1?1:0),_oDealerCardOffset.getY());
-                    console.log("ending point: x = " + pEndingPoint.getX() + ", y = " + pEndingPoint.getY());
                     var iCard;
                     iCard = _aCardsInCurHandForDealer[_iNextCardForDealer];
 
@@ -646,13 +669,11 @@ function CGame(oData){
 
                     _aCardOut[iCard] += 1;
                     _iNextCardForDealer++;
-                    if(_iCardDealedToDealer === 2){
+                    if (_iCardDealedToDealer === 2){
                             oCard.addEventListener(ON_CARD_SHOWN,this._onCardShown);
                     }
-                }else{
-                    console.log("player card");
+                } else {
                     pEndingPoint=_oSeat.getAttachCardOffset();
-                    console.log("ending poing: x = " + pEndingPoint.getX() + ", y = " + pEndingPoint.getY());
                     oCard.setInfo(pStartingPoint,pEndingPoint,_aCardsInCurHandForPlayer[_iNextCardForPlayer],
                                                     s_oGameSettings.getCardValue(_aCardsInCurHandForPlayer[_iNextCardForPlayer]),
                                                                     false,_oSeat.newCardDealed());
@@ -668,10 +689,10 @@ function CGame(oData){
                 oCard.addEventListener(ON_CARD_ANIMATION_ENDING,this.cardFromDealerArrived);
                 oCard.addEventListener(ON_CARD_TO_REMOVE,this._onRemoveCard);
 
-                if(DISABLE_SOUND_MOBILE === false || s_bMobile === false){
+                if (DISABLE_SOUND_MOBILE === false || s_bMobile === false){
                     playSound("card", 1, 0);
                 }
-        }else{
+        } else {
                 this._checkAvailableActionForPlayer();
         }
     };
@@ -685,22 +706,22 @@ function CGame(oData){
 
         this.changeState(STATE_GAME_HITTING);
 
-        if(DISABLE_SOUND_MOBILE === false || s_bMobile === false){
+        if (DISABLE_SOUND_MOBILE === false || s_bMobile === false){
             playSound("card", 1, 0);
         }
     };
 
     this._checkWinner = function(){
-        for(var i=0;i<_oSeat.getNumHands();i++){
-            if(_oSeat.getHandValue(i)>21){
+        for (var i=0;i<_oSeat.getNumHands();i++){
+            if (_oSeat.getHandValue(i)>21){
                     this._playerLose(i);
-            }else if(_iDealerValueCard>21){
+            } else if (_iDealerValueCard>21){
                     this._playerWin(i);
-            }else if(_oSeat.getHandValue(i)<22 && _oSeat.getHandValue(i)>_iDealerValueCard){
+            } else if (_oSeat.getHandValue(i)<22 && _oSeat.getHandValue(i)>_iDealerValueCard){
                     this._playerWin(i);
-            }else if(_oSeat.getHandValue(i) === _iDealerValueCard){
+            } else if (_oSeat.getHandValue(i) === _iDealerValueCard){
                     this.playerStandOff(i);
-            }else{
+            } else {
                 this._playerLose(i);
             }
         }
@@ -709,14 +730,14 @@ function CGame(oData){
     this._onEndHand = function(){
         var pRemoveOffset=new CVector2(_oRemoveCardsOffset.getX(),_oRemoveCardsOffset.getY());
 
-        for(var i=0;i<_aDealerCards.length;i++){
+        for (var i=0;i<_aDealerCards.length;i++){
             _aDealerCards[i].initRemoving(pRemoveOffset);
             _aDealerCards[i].hideCard();
         }
 
 
         var aCards=_oSeat.getPlayerCards();
-        for(var k=0;k<aCards.length;k++){
+        for (var k=0;k<aCards.length;k++){
                 aCards[k].initRemoving(pRemoveOffset);
                 aCards[k].hideCard();
         }
@@ -726,12 +747,12 @@ function CGame(oData){
         _iTimeElaps=0;
         s_oGame.changeState(STATE_GAME_SHOW_WINNER);
 
-        if(DISABLE_SOUND_MOBILE === false || s_bMobile === false){
+        if (DISABLE_SOUND_MOBILE === false || s_bMobile === false){
             playSound("fiche_collect", 1, 0);
         }
 
         _iAdsCounter++;
-        if(_iAdsCounter === AD_SHOW_COUNTER){
+        if (_iAdsCounter === AD_SHOW_COUNTER){
             _iAdsCounter = 0;
             $(s_oMain).trigger("show_interlevel_ad");
         }
@@ -742,7 +763,7 @@ function CGame(oData){
     this.ficheSelected = function(iFicheValue,iFicheIndex){
         var iCurBet=_oSeat.getCurBet();
 
-        if( (iCurBet+iFicheValue) <= _iMaxBet && iFicheValue <= _oSeat.getCredit() ){
+        if ( (iCurBet+iFicheValue) <= _iMaxBet && iFicheValue <= _oSeat.getCredit() ){
             iCurBet+=iFicheValue;
             iCurBet=Number(iCurBet.toFixed(1));
 
@@ -763,38 +784,38 @@ function CGame(oData){
 
             var iPlayerValueCard =_oSeat.getHandValue(0);
             //PLAYER HAVE 21 WITH FIRST 2 CARDS
-            if(iPlayerValueCard === 21){
+            if (iPlayerValueCard === 21){
                     _oSeat.refreshCardValue();
                     this._passTurnToDealer();
                     return;
-            }else if(iPlayerValueCard > 21){
+            } else if (iPlayerValueCard > 21){
                 _oSeat.removeAce();
             }
 
             _oSeat.refreshCardValue();
             var bActivateSplit = false;
 
-            if(_oSeat.isSplitAvailable() && _oSeat.getCredit() >= _oSeat.getCurBet()*1.5){
+            if (_oSeat.isSplitAvailable() && _oSeat.getCredit() >= _oSeat.getCurBet()*1.5){
                     bActivateSplit=true;
             }
             _oInterface.displayMsg(TEXT_DISPLAY_MSG_YOUR_ACTION);
 
             var bActivateDouble=false;
-            if(_oSeat.getNumCardsForHand(0) === 2 &&  _oSeat.getHandValue(0) > 8 && _oSeat.getHandValue(0) < 16 && _oSeat.getCredit() >= _oSeat.getCurBet() && !_bSplitActive){
+            if (_oSeat.getNumCardsForHand(0) === 2 &&  _oSeat.getHandValue(0) > 8 && _oSeat.getHandValue(0) < 16 && _oSeat.getCredit() >= _oSeat.getCurBet() && !_bSplitActive){
                     bActivateDouble=true;
             }
             _oInterface.enable(false,true,true,bActivateDouble,bActivateSplit);
 
             //SHOW INSURANCE PANEL
 
-            // if(_aDealerCards[0].getValue() === 11){
+            // if (_aDealerCards[0].getValue() === 11){
             //     _iInsuranceBet=_oSeat.getCurBet()/2;
             //     _oInterface.showInsurancePanel();
             // }
     };
 
     this._passTurnToDealer = function(){
-        if(!_bPlayerTurn){
+        if (!_bPlayerTurn){
             return;
         }
         _bPlayerTurn=false;
@@ -806,10 +827,11 @@ function CGame(oData){
         _iNextCardForDealer++;
 
         // Setting value to drawn dealer card
-        _aDealerCards[1].setCardValue(s_oGameSettings.getCardValue(iCard));
+        _aDealerCards[1].setCard(iCard, s_oGameSettings.getCardValue(iCard));
+        _iDealerValueCard += _aDealerCards[1].getValue();
         _aDealerCards[1].showCard();
 
-        if(DISABLE_SOUND_MOBILE === false || s_bMobile === false){
+        if (DISABLE_SOUND_MOBILE === false || s_bMobile === false){
             playSound("card", 1, 0);
         }
 
@@ -826,8 +848,28 @@ function CGame(oData){
 
     this._onSetPlayerActions = function(bDeal,bHit,bStand,bDouble,bSplit){
         _oInterface.enable(bDeal,bHit,bStand,bDouble,bSplit);
-	_oSeat.refreshCardValue();
+	    _oSeat.refreshCardValue();
     };
+
+    this.showSitDownButton = function(){
+        _oSeat.showSitDownButton();
+    }
+
+    this.hideSitDownButton = function(){
+        _oSeat.showSitDownButton();
+    }
+
+    this.enableBetFiches = function(){
+        s_oInterface.enableBetFiches();
+    }
+
+    this.disableBetFiches = function(){
+        s_oInterface.disableBetFiches();
+    }
+
+    this.enableButtons = function(bDealBut,bHit,bStand,bDouble,bSplit){
+        s_oInterface.enable(bDealBut,bHit,bStand,bDouble,bSplit);
+    }
 
     this.cardDrawn = function(card, isDealer) {
         if (isDealer) {
@@ -842,7 +884,7 @@ function CGame(oData){
     };
 
     this.onDeal = function(){
-        DApp.deal(this.onDealComplete.bind(this));
+        DApp.deal(_oSeat.getCurBet(), this.onDealComplete.bind(this));
     };
 
     this.onHit = function(){
@@ -859,7 +901,7 @@ function CGame(oData){
     };
 
     this.onDealComplete = function(){
-        if(_iMinBet>_oSeat.getCurBet()){
+        if (_iMinBet>_oSeat.getCurBet()){
             _oMsgBox.show(TEXT_ERROR_MIN_BET);
             s_oInterface.enableBetFiches();
             s_oInterface.enable(true,false,false,false,false);
@@ -895,7 +937,7 @@ function CGame(oData){
         _oSeat.changeBet(iCurBet);
         _oSeat.decreaseCredit(iDoubleBet);
         _iGameCash += iDoubleBet;
-        if(_iGameCash < (iCurBet * 2) ) {
+        if (_iGameCash < (iCurBet * 2) ) {
             _bDealerLoseInCurHand = false;
         }
 
@@ -908,7 +950,7 @@ function CGame(oData){
     };
 
     this.onSplit = function(){
-        if(_iGameCash < (_oSeat.getCurBet() * 4) ) {
+        if (_iGameCash < (_oSeat.getCurBet() * 4) ) {
             _bDealerLoseInCurHand = false;
         }
         _oSeat.split();
@@ -941,11 +983,12 @@ function CGame(oData){
     this.clearBets = function(){
         var iCurBet = _oSeat.getStartingBet();
 
-        if(iCurBet>0){
+        if (iCurBet>0){
             _oSeat.clearBet();
             _oSeat.increaseCredit(iCurBet);
             _iGameCash -= iCurBet;
             _oInterface.refreshCredit(_oSeat.getCredit());
+            _oInterface.enable(false,false,false,false,false);
         }
     };
 
@@ -956,7 +999,7 @@ function CGame(oData){
             _oInterface.enable(true,false,false,false,false);
             _oInterface.refreshCredit(_oSeat.getCredit());
             _iTimeElaps = BET_TIME;
-        }else{
+        } else {
             _oInterface.disableRebet();
         }
 
@@ -993,31 +1036,32 @@ function CGame(oData){
 
     this._updateWaitingBet = function(){
         _iTimeElaps += s_iTimeElaps;
-        if(_iTimeElaps>BET_TIME){
-            _iTimeElaps=0;
-
-            if(_oSeat.getCurBet() <_iMinBet){
-                return;
-            }
-            _oInterface.disableBetFiches();
-            _oInterface.enable(true,false,false,false,false);
-            this.changeState(STATE_GAME_DEALING);
-
-            $(s_oMain).trigger("bet_placed",_oSeat.getCurBet());
-        }else{
-            var iCountDown=Math.floor((BET_TIME-_iTimeElaps)/1000);
-            _oInterface.displayMsg(TEXT_MIN_BET+":"+_iMinBet+"\n"+TEXT_MAX_BET+":"+_iMaxBet,TEXT_DISPLAY_MSG_WAITING_BET+" "+iCountDown);
-        }
+        // if (_iTimeElaps>BET_TIME){
+        //     _iTimeElaps=0;
+        //
+        //     if (_oSeat.getCurBet() <_iMinBet){
+        //         return;
+        //     }
+        //     _oInterface.disableBetFiches();
+        //     _oInterface.enable(true,false,false,false,false);
+        //     this.changeState(STATE_GAME_DEALING);
+        //
+        //     $(s_oMain).trigger("bet_placed",_oSeat.getCurBet());
+        // } else {
+        //     var iCountDown=Math.floor((BET_TIME-_iTimeElaps)/1000);
+        //    _oInterface.displayMsg(TEXT_MIN_BET+":"+_iMinBet+"\n"+TEXT_MAX_BET+":"+_iMaxBet,TEXT_DISPLAY_MSG_WAITING_BET+" "+iCountDown);
+        // }
+        _oInterface.displayMsg(TEXT_MIN_BET+":"+_iMinBet+"\n"+TEXT_MAX_BET+":"+_iMaxBet,TEXT_DISPLAY_MSG_WAITING_BET);
     };
 
     this._updateDealing = function(){
-        for(var i=0;i<_aCardsDealing.length;i++){
+        for (var i=0;i<_aCardsDealing.length;i++){
             _aCardsDealing[i].update();
         }
     };
 
     this._updateHitting = function(){
-        for(var i=0;i<_aCardsDealing.length;i++){
+        for (var i=0;i<_aCardsDealing.length;i++){
             _aCardsDealing[i].update();
         }
     };
@@ -1030,24 +1074,24 @@ function CGame(oData){
         _oSeat.updateFichesController(s_iTimeElaps);
 
         var aCards=_oSeat.getPlayerCards();
-        for(var k=0;k<aCards.length;k++){
+        for (var k=0;k<aCards.length;k++){
                 aCards[k].update();
         }
 
-        for(var j=0;j<_aDealerCards.length;j++){
+        for (var j=0;j<_aDealerCards.length;j++){
                 _aDealerCards[j].update();
         }
 
         _iTimeElaps+=s_iTimeElaps;
-        if(_iTimeElaps>TIME_END_HAND){
+        if (_iTimeElaps>TIME_END_HAND){
             _iTimeElaps=0;
             this.reset(false);
             _oInterface.reset();
 
-            if(_oSeat.getCredit()<s_oGameSettings.getFichesValueAt(0)){
+            if (_oSeat.getCredit()<s_oGameSettings.getFichesValueAt(0)){
                     this._gameOver();
                     this.changeState(-1);
-            }else{
+            } else {
                     this.changeState(STATE_GAME_WAITING_FOR_BET);
             }
 
@@ -1056,7 +1100,7 @@ function CGame(oData){
     };
 
     this.update = function(){
-        if(_bUpdate === false){
+        if (_bUpdate === false){
             return;
         }
 
