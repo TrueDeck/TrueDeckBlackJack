@@ -1,6 +1,7 @@
 function CGame(oData){
     DApp = {
       web3Provider: null,
+      web3: null,
       contracts: {},
       state: {},
       game: null,
@@ -11,15 +12,14 @@ function CGame(oData){
       },
 
       initWeb3: function() {
-        // Initialize web3 and set the provider to the testRPC.
-        var web3 = window.web3;
         if (typeof web3 !== 'undefined') {
-          DApp.web3Provider = web3.currentProvider;
-          web3 = new Web3(web3.currentProvider);
+          DApp.web3Provider = window.web3.currentProvider;
+          DApp.web3 = new Web3(DApp.web3Provider);
+          console.log("Web3 initialized...");
+          console.log("Window web3 version = " + window.web3.version.api);
+          console.log("DApp web3 Version   = " + DApp.web3.version);
         } else {
-          // If no injected web3 instance is detected, fallback to Ganache.
-          DApp.web3Provider = new web3.providers.HttpProvider('http://127.0.0.1:8545');
-          web3 = new Web3(DApp.web3Provider);
+          console.log("No web wallet found!");
         }
 
         return DApp.initContract();
@@ -37,7 +37,6 @@ function CGame(oData){
           // Setting initial State
           DApp.state = {
               blockCursor: 0,
-              web3: null,
               blackjack: null,
 
               gameID: null,
@@ -62,7 +61,7 @@ function CGame(oData){
             blockNumber = blockNumber.toNumber();
             console.log("block number: " + blockNumber);
             if (blockNumber === 0) {
-                web3.eth.getBlockNumber(function(error, currentBlockNumber) {
+                DApp.web3.eth.getBlockNumber(function(error, currentBlockNumber) {
                     console.log("watching events from block number: " + currentBlockNumber);
                     blackjackInstance.allEvents({fromBlock: currentBlockNumber, toBlock: 'latest'})
                         .watch(function(error, eventLog) {
@@ -124,7 +123,7 @@ function CGame(oData){
       sitDown: function(callback) {
           console.log("===== sitDown =====");
           DApp.state.callback = callback;
-          web3.eth.getAccounts(function(error, accounts) {
+          DApp.web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
                   return instance.initGame({from: accounts[0]});
               }).then(function(result) {
@@ -139,9 +138,9 @@ function CGame(oData){
       deal: function(betValue, callback) {
           console.log("===== deal =====");
           DApp.state.callback = callback;
-          web3.eth.getAccounts(function(error, accounts) {
+          DApp.web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.newRound(0x3d10bc4234567676448503e68508a5d3, {from: accounts[0], value: betValue * Math.pow(10,18)});
+                  return instance.newRound("", betValue, {from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
               }).catch((err) => {
@@ -155,7 +154,7 @@ function CGame(oData){
       hit: function(callback) {
           console.log("===== hit =====");
           DApp.state.callback = callback;
-          web3.eth.getAccounts(function(error, accounts) {
+          DApp.web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
                   return instance.hit({from: accounts[0]});
               }).then(function(result) {
@@ -170,7 +169,7 @@ function CGame(oData){
       stand: function(callback) {
           console.log("===== stand =====");
           DApp.state.callback = callback;
-          web3.eth.getAccounts(function(error, accounts) {
+          DApp.web3.eth.getAccounts(function(error, accounts) {
               DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
                   return instance.stand({from: accounts[0]});
               }).then(function(result) {
@@ -251,7 +250,7 @@ function CGame(oData){
         s_oStage.addChild(_oBg);
 
         _oSeat = new CSeat();
-        _oSeat.setCredit(0);
+        _oSeat.setCredit(TOTAL_MONEY);
         _oSeat.addEventListener(SIT_DOWN,this._onSitDown,this);
         _oSeat.addEventListener(RESTORE_ACTION,this._onSetPlayerActions);
         _oSeat.addEventListener(PASS_TURN,this._passTurnToDealer);

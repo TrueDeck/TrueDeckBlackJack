@@ -899,7 +899,7 @@ contract TrueDeckBlackJack is Ownable {
         uint256 credits;
 
         uint256 bet;
-        uint256 seedhash;
+        bytes32 seedhash;
         uint256[] blocks;
         uint8[] actions;        // 1-Deal, 2-Hit, 3-Stand
     }
@@ -959,7 +959,7 @@ contract TrueDeckBlackJack is Ownable {
     function reset(Game storage game) private {
         game.stage = Stage.Bet;
         game.bet = 0;
-        game.seedhash = 0;
+        game.seedhash = "";
         delete game.blocks;
         delete game.actions;
     }
@@ -974,7 +974,7 @@ contract TrueDeckBlackJack is Ownable {
                                 stage: Stage.SitDown,
                                 credits: 1000,
                                 bet: 0,
-                                seedhash: 0,
+                                seedhash: "",
                                 blocks: new uint256[](0),
                                 actions: new uint8[](0)
                             });
@@ -982,7 +982,7 @@ contract TrueDeckBlackJack is Ownable {
         nextStage(games[msg.sender]);
     }
 
-    function newRound(uint256 _seedhash, uint256 bet) public atNotStage(Stage.SitDown) {
+    function newRound(bytes32 _seedhash, uint256 bet) public atNotStage(Stage.SitDown) {
         Game storage game = games[msg.sender];
 
         game.seedhash = _seedhash;
