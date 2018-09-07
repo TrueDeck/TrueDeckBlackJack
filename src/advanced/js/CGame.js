@@ -40,9 +40,10 @@ function CGame(oData){
               blackjack: null,
 
               gameID: null,
-              blockNumber: null,
               round: null,
               stage: 0,
+              futureBlock: 0,
+              futureBlockHash: null,
               callback: null
           };
 
@@ -75,6 +76,31 @@ function CGame(oData){
                         DApp.watchEvents(error, eventLog);
                     });
             }
+
+            // Watch future block headers
+            var subscription = DApp.web3.eth.subscribe('newBlockHeaders', function(error, result){
+                if (!error) {
+                    console.log(result);
+                    return;
+                } else if (error) {
+                    console.log("Error: " + error);
+                }
+            }).on("data", function(blockHeader){
+                if (DApp.state.futureBlock == null) {
+                    return;
+                }
+
+                if (blockHeader) {
+                    if (blockHeader.number != null && DApp.state.futureBlock == blockHeader.number) {
+                        DApp.state.futureBlockHash = blockHeader.hash;
+                        console.log("Hash #" + blockHeader.number + " = " + DApp.state.futureBlockHash);
+                        if (DApp.state.callback) {
+                             DApp.state.callback();
+                        }
+                    }
+                }
+            })
+            .on("error", console.error);
         });
       },
 
@@ -90,6 +116,8 @@ function CGame(oData){
                         console.log("      #: " + eventLog.logIndex);
                         console.log("Block #: " + eventLog.args.blockNumber.toNumber());
                         console.log("===== END   : " + eventLog.event + " =====");
+
+                        DApp.state.futureBlock = eventLog.args.blockNumber.toNumber();
                         break;
 
                     case "Result":
@@ -128,6 +156,9 @@ function CGame(oData){
                   return instance.initGame({from: accounts[0]});
               }).then(function(result) {
                   console.log(result);
+                  if (DApp.state.callback) {
+                      DApp.state.callback();
+                  }
               }).catch((err) => {
                   console.log("SitDown Failed: " + err);
                   DApp.game.showSitDownButton();

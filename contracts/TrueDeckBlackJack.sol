@@ -905,7 +905,7 @@ contract TrueDeckBlackJack is Ownable {
     }
 
     struct Hand {
-        uint256 score;
+        uint8 score;
         uint8 length;
         uint8 numberOfAces;
     }
@@ -924,7 +924,7 @@ contract TrueDeckBlackJack is Ownable {
         return games[msg.sender].startBlock;
     }
 
-    function getCredits() private view returns (uint256) {
+    function getCredits() public view returns (uint256) {
         return games[msg.sender].credits;
     }
 
@@ -1024,38 +1024,32 @@ contract TrueDeckBlackJack is Ownable {
     }
 
     function concludeGame(Game storage game, uint256 seed) private {
-        Hand memory playerHand = Hand(0, 0);
-        Hand memory dealerHand = Hand(0, 0);
+        Hand memory playerHand = Hand(0, 0, 0);
+        Hand memory dealerHand = Hand(0, 0, 0);
 
         // Replay game actions
         for (uint8 i = 0; i < game.blocks.length; i++) {
-            uint256 cardSeed = uint256(keccak256(abi.encodePacked(seed, block.blockhash(game.blocks[i]))));
-            switch (game.actions[i]) {
+            uint256 cardSeed = uint256(keccak256(abi.encodePacked(seed, blockhash(game.blocks[i]))));
+            uint8 action = game.actions[i];
+            if (action == 1) {
                 // DEAL
-                case 1:
-                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
-                    drawCard(dealerHand, uint8(((cardSeed >> 2) & 255) % 13));
-                    drawCard(playerHand, uint8(((cardSeed >> 4) & 255) % 13));
-                    break;
-
+                drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                drawCard(dealerHand, uint8(((cardSeed >> 2) & 255) % 13));
+                drawCard(playerHand, uint8(((cardSeed >> 4) & 255) % 13));
+            } else if (action == 2) {
                 // HIT
-                case 2:
-                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
-                    break;
-
+                drawCard(playerHand, uint8((cardSeed & 255) % 13));
+            } else if (action == 3) {
                 // STAND
-                case 3:
+                drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+
+                // Dealer must draw to 16 and stand on all 17's
+                while (getScore(dealerHand) < 17) {
+                    cardSeed = cardSeed >> 2;
                     drawCard(dealerHand, uint8((cardSeed & 255) % 13));
-
-                    // Dealer must draw to 16 and stand on all 17's
-                    while (getScore(dealerHand) < 17) {
-                        cardSeed = cardSeed >> 2;
-                        drawCard(dealerHand, uint8((cardSeed & 255) % 13));
-                    }
-                    break;
-
-                default:
-                    emit Error(104);
+                }
+            } else {
+                emit Error(104);
             }
         }
 
@@ -1067,7 +1061,7 @@ contract TrueDeckBlackJack is Ownable {
             payout = game.bet * 3;
         } else if (playerScore > dealerScore || dealerScore > 21) {
             payout = game.bet * 2;
-        } else if (player.score == dealer.score) {
+        } else if (playerScore == dealerScore) {
             payout = game.bet;
         }
 
@@ -1076,7 +1070,7 @@ contract TrueDeckBlackJack is Ownable {
         emit Result(game.id, game.round, payout, playerScore, dealerScore);
     }
 
-    function drawCard(Hand hand, card) private {
+    function drawCard(Hand hand, uint8 card) private view {
         hand.length++;
         hand.score += cardPoints[card];
         if (card == 0) hand.numberOfAces++;
