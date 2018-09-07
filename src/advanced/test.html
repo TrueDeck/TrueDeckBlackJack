@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Test</title>
+    </head>
+    <body>
+
+        <script type="text/javascript">
+        window.addEventListener("load", function() {
+            if (typeof web3 !== 'undefined') {
+                web3 = new Web3(window.web3.currentProvider);
+                console.log("Web3 initialized...");
+                console.log("DApp web3 Version   = " + web3.version.api);
+
+                web3.eth.filter("latest", function(error, result) {
+                    if (!error) {
+                        console.log("============================================================");
+                        console.log("result:" + result);
+                        web3.eth.getBlock(result, function(error, result1) {
+                            console.log(result1);
+                        });
+                    }
+                });
+            } else {
+                console.log("No web wallet found!");
+            }
+        });
+        </script>
+    </body>
+</html>
