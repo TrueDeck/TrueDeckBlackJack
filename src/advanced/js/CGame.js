@@ -1,4 +1,6 @@
 function CGame(oData){
+    const TEST_SEED = "TEST SEED FOR BLACKJACK";
+
     DApp = {
       web3Provider: null,
       web3: null,
@@ -8,6 +10,7 @@ function CGame(oData){
 
       init: function(s_oGame) {
         DApp.game = s_oGame;
+        log.setLevel("debug");
         return DApp.initWeb3();
       },
 
@@ -15,11 +18,9 @@ function CGame(oData){
         if (typeof web3 !== 'undefined') {
           DApp.web3Provider = window.web3.currentProvider;
           DApp.web3 = new Web3(DApp.web3Provider);
-          console.log("Web3 initialized...");
-          console.log("Window web3 version = " + window.web3.version.api);
-          console.log("DApp web3 Version   = " + DApp.web3.version);
+          log.debug("Web3 initialized. Window web3 version = " + window.web3.version.api + ", DApp web3 Version = " + DApp.web3.version);
         } else {
-          console.log("No web wallet found!");
+          log.error("No web wallet found! Please use MetaMask!");
         }
 
         return DApp.initContract();
@@ -34,181 +35,183 @@ function CGame(oData){
           // Set the provider for our contract.
           DApp.contracts.TrueDeckBlackJack.setProvider(DApp.web3Provider);
 
-          // Setting initial State
-          DApp.state = {
-              blockCursor: 0,
-              blackjack: null,
+          log.debug("Getting accounts:");
+          DApp.web3.eth.getAccounts(function(error, accounts) {
+              log.debug("Using accounts[0]: " + accounts[0]);
 
-              gameID: null,
-              round: null,
-              stage: 0,
-              futureBlock: 0,
-              futureBlockHash: null,
-              callback: null
-          };
+              // Setting initial State
+              DApp.state = {
+                  account: accounts[0],
+                  round: null,
+                  stage: 0,
+                  cardSeed: null,
+                  callback: null
+              };
 
-          return DApp.instantiateContract();
+              DApp.instantiateContract();
+          });
         });
       },
 
       instantiateContract: function() {
         var blackjackInstance;
+        log.debug("Starting...");
+        log.debug("Checking if contract has deployed!");
         DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
             blackjackInstance = instance;
-            console.log("Starting...");
-            console.log("Getting existing game round's block number...");
+            log.debug("Checking for existing game round's start block!");
             return instance.getRoundBlockNumber.call();
         }).then(function(blockNumber) {
             blockNumber = blockNumber.toNumber();
-            console.log("block number: " + blockNumber);
             if (blockNumber === 0) {
+                log.debug("No game found!");
+                log.debug("Getting current block number!");
                 DApp.web3.eth.getBlockNumber(function(error, currentBlockNumber) {
-                    console.log("watching events from block number: " + currentBlockNumber);
+                    log.debug("Watching events from current block#" + currentBlockNumber);
                     blackjackInstance.allEvents({fromBlock: currentBlockNumber, toBlock: 'latest'})
                         .watch(function(error, eventLog) {
-                            DApp.watchEvents(error, eventLog);
+                            if (eventLog.args.player && DApp.state.account
+                                && eventLog.args.player.toLowerCase() === DApp.state.account.toLowerCase()) {
+                                DApp.watchEvents(error, eventLog);
+                            }
                         });
                 });
             } else {
-                console.log("watching events from block number: " + blockNumber);
+                log.debug("Game already created!");
+                log.debug("Watching events from round start block#" + blockNumber);
                 blackjackInstance.allEvents({fromBlock: blockNumber, toBlock: 'latest'})
                     .watch(function(error, eventLog) {
-                        DApp.watchEvents(error, eventLog);
+                        if (eventLog.args.player && DApp.state.account
+                            && eventLog.args.player.toLowerCase() === DApp.state.account.toLowerCase()) {
+                            DApp.watchEvents(error, eventLog);
+                        }
                     });
             }
-
-            // Watch future block headers
-            var subscription = DApp.web3.eth.subscribe('newBlockHeaders', function(error, result){
-                if (!error) {
-                    console.log(result);
-                    return;
-                } else if (error) {
-                    console.log("Error: " + error);
-                }
-            }).on("data", function(blockHeader){
-                if (DApp.state.futureBlock == null) {
-                    return;
-                }
-
-                if (blockHeader) {
-                    if (blockHeader.number != null && DApp.state.futureBlock == blockHeader.number) {
-                        DApp.state.futureBlockHash = blockHeader.hash;
-                        console.log("Hash #" + blockHeader.number + " = " + DApp.state.futureBlockHash);
-                        if (DApp.state.callback) {
-                             DApp.state.callback();
-                        }
-                    }
-                }
-            })
-            .on("error", console.error);
         });
       },
 
       watchEvents: function(error, eventLog) {
           if (error) {
-              console.log("xxxxx ERROR : " + eventLog.event + " xxxxx");
-              console.log(error);
-              console.log("xxxxx END   : " + eventLog.event + " xxxxx");
+              log.debug("Event error: " + error);
           } else {
+              log.debug("Event received: " + eventLog.event);
               switch (eventLog.event) {
-                    case "FutureBlock":
-                        console.log("===== EVENT : " + eventLog.event + " =====");
-                        console.log("      #: " + eventLog.logIndex);
-                        console.log("Block #: " + eventLog.args.blockNumber.toNumber());
-                        console.log("===== END   : " + eventLog.event + " =====");
+                    case "GameCreated":
+                        log.debug("New game has been created for account: " + DApp.state.account);
+                        if (DApp.state.callback) {
+                            DApp.state.callback();
+                        }
+                        break;
 
-                        DApp.state.futureBlock = eventLog.args.blockNumber.toNumber();
+                    case "NewRound":
+                        log.debug("Round #" + eventLog.args.round.toNumber() + " started with bet amount: " + eventLog.args.bet.toNumber());
+                        break;
+
+                    case "StageChanged":
+                        log.debug("Round #" + eventLog.args.round.toNumber() + " stage changed: " + DApp.getStage(eventLog.args.newStage.toNumber()));
+                        break;
+
+                    case "BlockElected":
+                        var electedBlockNumber = eventLog.args.blockNumber.toNumber();
+                        log.debug("Block Elected: " + electedBlockNumber);
+
+                        log.debug("Getting BlockHeader of Block #" + electedBlockNumber);
+                        window.web3.eth.getBlock(electedBlockNumber, function(error, blockHeader) {
+                            log.debug("Block #" + blockHeader.number + " Hash = " + blockHeader.hash);
+                            DApp.state.cardSeed = DApp.web3.utils.toBN(DApp.web3.utils.soliditySha3(TEST_SEED, blockHeader.hash));
+                            log.debug("Card Seed Generated: " + DApp.state.cardSeed);
+                            if (DApp.state.callback) {
+                                 DApp.state.callback();
+                            }
+                        });
                         break;
 
                     case "Result":
-                        console.log("===== EVENT : " + eventLog.event + " =====");
-                        console.log("     #: " + eventLog.logIndex);
-                        console.log("    ID: " + eventLog.args.gameId);
-                        console.log(" Round: " + eventLog.args.round.toNumber());
-                        console.log("Payout: " + eventLog.args.payout.toNumber());
-                        console.log("PScore: " + eventLog.args.playerScore.toNumber());
-                        console.log("DScore: " + eventLog.args.dealerScore.toNumber());
-                        console.log("===== END   : " + eventLog.event + " =====");
+                        log.debug("Round #" + eventLog.args.round.toNumber() + ", PScore:" + eventLog.args.playerScore.toNumber() + ", DScore:" + eventLog.args.dealerScore.toNumber() + ", Payout:" + eventLog.args.payout.toNumber() + ", Credits:" + eventLog.args.credits.toNumber());
+                        DApp.game.setCredit(eventLog.args.credits.toNumber());
+                        DApp.game.enableBetFiches();
+                        DApp.game.enableButtons(true,false,false,false,false);
                         break;
 
                     case "Info":
-                        console.log("+++++ Info : " + eventLog.event + " +++++");
-                        console.log("      #: " + eventLog.logIndex);
-                        console.log("Message: " + eventLog.args.errorCode);
-                        console.log("+++++ END   : " + eventLog.event + " +++++");
+                        log.debug("Info #" + eventLog.args.code + ": " + eventLog.args.message);
                         break;
 
                     case "Error":
-                        console.log("xxxxx ERROR : " + eventLog.event + " xxxxx");
-                        console.log("   #: " + eventLog.logIndex);
-                        console.log("Code: " + eventLog.args.errorCode);
-                        console.log("xxxxx END   : " + eventLog.event + " xxxxx");
+                        log.debug("Error #" + eventLog.args.code + ": " + eventLog.args.message);
                         break;
               }
           }
       },
 
       sitDown: function(callback) {
-          console.log("===== sitDown =====");
+          log.info("Action: SitDown, waiting for TX to be mined.");
           DApp.state.callback = callback;
-          DApp.web3.eth.getAccounts(function(error, accounts) {
-              DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.initGame({from: accounts[0]});
-              }).then(function(result) {
-                  console.log(result);
-                  if (DApp.state.callback) {
-                      DApp.state.callback();
-                  }
-              }).catch((err) => {
-                  console.log("SitDown Failed: " + err);
-                  DApp.game.showSitDownButton();
-              });
+
+          DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+              return instance.initGame({from: DApp.state.account});
+          }).then(function(result) {
+              log.info("TX mined.");
+              console.log(result);
+          }).catch((err) => {
+              log.error("Action: SitDown Failed!" + err);
+              DApp.game.showSitDownButton();
           });
       },
 
       deal: function(betValue, callback) {
-          console.log("===== deal =====");
+          log.info("Action: Deal, waiting for TX to be mined.");
           DApp.state.callback = callback;
-          DApp.web3.eth.getAccounts(function(error, accounts) {
-              DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.newRound("", betValue, {from: accounts[0]});
-              }).then(function(result) {
-                  console.log(result);
-              }).catch((err) => {
-                  console.log("Deal Failed: " + err);
-                  DApp.game.enableBetFiches();
-                  DApp.game.enableButtons(true,false,false,false,false);
-              });
+          DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+              return instance.newRound(TEST_SEED, betValue, {from: DApp.state.account});
+          }).then(function(result) {
+              log.info("TX mined.");
+              console.log(result);
+          }).catch((err) => {
+              log.error("Action: Deal Failed!" + err);
+              DApp.game.enableBetFiches();
+              DApp.game.enableButtons(true,false,false,false,false);
           });
       },
 
       hit: function(callback) {
-          console.log("===== hit =====");
+          log.info("Action: Hit, waiting for TX to be mined.");
           DApp.state.callback = callback;
-          DApp.web3.eth.getAccounts(function(error, accounts) {
-              DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.hit({from: accounts[0]});
-              }).then(function(result) {
-                  console.log(result);
-              }).catch((err) => {
-                  console.log("Hit Failed: " + err);
-                  DApp.game.enableButtons(false,true,true,false,false);
-              });
+          DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+              return instance.hit({from: DApp.state.account});
+          }).then(function(result) {
+              log.info("TX mined.");
+              console.log(result);
+          }).catch((err) => {
+              log.error("Action: Hit Failed!" + err);
+              DApp.game.enableButtons(false,true,true,false,false);
           });
       },
 
       stand: function(callback) {
-          console.log("===== stand =====");
+          log.info("Action: Stand, waiting for TX to be mined.");
           DApp.state.callback = callback;
-          DApp.web3.eth.getAccounts(function(error, accounts) {
-              DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-                  return instance.stand({from: accounts[0]});
-              }).then(function(result) {
-                  console.log(result);
-              }).catch((err) => {
-                  console.log("Stand Failed: " + err);
-                  DApp.game.enableButtons(false,true,true,false,false);
-              });
+          DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+              return instance.stand({from: DApp.state.account});
+          }).then(function(result) {
+              log.info("TX mined.");
+              console.log(result);
+          }).catch((err) => {
+              log.error("Action: Stand Failed!" + err);
+              DApp.game.enableButtons(false,true,true,false,false);
+          });
+      },
+
+      claim: function() {
+          log.info("Action: Claim, waiting for TX to be mined.");
+          DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+              return instance.claim(TEST_SEED, {from: DApp.state.account});
+          }).then(function(result) {
+              log.info("TX mined.");
+              console.log(result);
+          }).catch((err) => {
+              log.error("Action: Claim Failed!" + err);
+              DApp.game.enableButtons(false,false,false,true,false);
           });
       },
 
@@ -221,7 +224,6 @@ function CGame(oData){
           }
       }
     };
-
 
     var _bUpdate = false;
     var _bPlayerTurn;
@@ -636,10 +638,13 @@ function CGame(oData){
             if (_oSeat.getHandValue(i)>21){
                     this._playerLose(i);
             } else if (_iDealerValueCard>21){
+                    _oInterface.enable(false,false,false,true,false);
                     this._playerWin(i);
             } else if (_oSeat.getHandValue(i)<22 && _oSeat.getHandValue(i)>_iDealerValueCard){
+                    _oInterface.enable(false,false,false,true,false);
                     this._playerWin(i);
             } else if (_oSeat.getHandValue(i) === _iDealerValueCard){
+                    _oInterface.enable(false,false,false,true,false);
                     this.playerStandOff(i);
             } else {
                 this._playerLose(i);
@@ -741,6 +746,9 @@ function CGame(oData){
         _bPlayerTurn=false;
         _oInterface.disableButtons();
 
+        // Draw card for dealer
+        s_oGame.drawCardForDealer();
+
         // Fetching card from dealer hand
         _iNextCardForDealer--;
          iCard = _aCardsInCurHandForDealer[_iNextCardForDealer];
@@ -795,16 +803,8 @@ function CGame(oData){
         s_oInterface.enable(bDealBut,bHit,bStand,bDouble,bSplit);
     }
 
-    this.cardDrawn = function(card, isDealer) {
-        if (isDealer) {
-            _aCardsInCurHandForDealer.push(card);
-        } else {
-            _aCardsInCurHandForPlayer.push(card);
-        }
-    };
-
     this._onSitDown = function(){
-        DApp.sitDown(this._onSitDownComplete.bind(this));
+        DApp.sitDown(this.onSitDownComplete.bind(this));
     };
 
     this.onDeal = function(){
@@ -819,17 +819,43 @@ function CGame(oData){
         DApp.stand(this.onStandComplete.bind(this));
     };
 
-    this._onSitDownComplete = function(){
+    this.drawCard = function(isDealer) {
+        log.debug("Drawing card using seed: " + DApp.state.cardSeed);
+
+        const BN13 = DApp.web3.utils.toBN(13);
+        const BN255 = DApp.web3.utils.toBN(255);
+        var card = DApp.state.cardSeed.and(BN255).mod(BN13).toNumber();
+        DApp.state.cardSeed = DApp.state.cardSeed.shrn(2);
+
+        if (isDealer) {
+            log.debug("Dealer Card: " + card);
+            _aCardsInCurHandForDealer.push(card);
+        } else {
+            log.debug("Player Card: " + card);
+            _aCardsInCurHandForPlayer.push(card);
+        }
+
+        return card;
+    }
+
+    this.onSitDownComplete = function(){
         this.changeState(STATE_GAME_WAITING_FOR_BET);
         DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
+            log.debug("Getting player credits.");
             return instance.getCredits.call();
         }).then(function(credits) {
+            log.debug("Setting player credits: " + credits);
             s_oGame.setCredit(credits);
         });
         _oInterface.enableBetFiches();
     };
 
     this.onDealComplete = function(){
+        log.debug("Dealing cards");
+        this.drawCard(false);
+        this.drawCard(true);
+        this.drawCard(false);
+
         if (_iMinBet>_oSeat.getCurBet()){
             _oMsgBox.show(TEXT_ERROR_MIN_BET);
             s_oInterface.enableBetFiches();
@@ -843,6 +869,9 @@ function CGame(oData){
     };
 
     this.onHitComplete = function(){
+        log.debug("Player card for Hit");
+        this.drawCard(false);
+
         var pStartingPoint=new CVector2(_oStartingCardOffset.getX(),_oStartingCardOffset.getY());
 
         var pEndingPoint=new CVector2(_oSeat.getAttachCardOffset().getX(),_oSeat.getAttachCardOffset().getY());
@@ -856,27 +885,56 @@ function CGame(oData){
         _oSeat.stand();
     };
 
-    this.onDouble = function(){
-        var iDoubleBet=_oSeat.getCurBet();
+    this.drawCardForDealer = function(){
+        log.debug("Show Dealer card on Stand");
 
-        var iCurBet = iDoubleBet;
-        iCurBet += iDoubleBet;
+        var card = this.drawCard(true);
+        var value = s_oGameSettings.getCardValue(card);
 
-        _oSeat.doubleAction(iCurBet);
-        _oSeat.changeBet(iCurBet);
-        _oSeat.decreaseCredit(iDoubleBet);
-        _iGameCash += iDoubleBet;
-        if (_iGameCash < (iCurBet * 2) ) {
-            _bDealerLoseInCurHand = false;
+        var dealerScore = _iDealerValueCard;
+
+        log.debug("Drawing dealer cards to 16...");
+        while (true) {
+            if (value === 11 && (dealerScore + value) > 21){
+                value = 1;
+            }
+            dealerScore += value;
+
+            if (dealerScore >= 17) {
+                break;
+            }
+
+            card = this.drawCard(true);
+            value = s_oGameSettings.getCardValue(card);
         }
-
-        _oSeat.bet(iCurBet);
-        _oInterface.refreshCredit(_oSeat.getCredit());
-        this.onHit();
-
-        _bDoubleForPlayer=true;
-        $(s_oMain).trigger("bet_placed",iDoubleBet);
     };
+
+    // Using DOUBLE button as CLAIM button for now
+    this.onDouble = function(){
+
+    };
+
+    // this.onDouble = function(){
+    //     var iDoubleBet=_oSeat.getCurBet();
+    //
+    //     var iCurBet = iDoubleBet;
+    //     iCurBet += iDoubleBet;
+    //
+    //     _oSeat.doubleAction(iCurBet);
+    //     _oSeat.changeBet(iCurBet);
+    //     _oSeat.decreaseCredit(iDoubleBet);
+    //     _iGameCash += iDoubleBet;
+    //     if (_iGameCash < (iCurBet * 2) ) {
+    //         _bDealerLoseInCurHand = false;
+    //     }
+    //
+    //     _oSeat.bet(iCurBet);
+    //     _oInterface.refreshCredit(_oSeat.getCredit());
+    //     this.onHit();
+    //
+    //     _bDoubleForPlayer=true;
+    //     $(s_oMain).trigger("bet_placed",iDoubleBet);
+    // };
 
     this.onSplit = function(){
         if (_iGameCash < (_oSeat.getCurBet() * 4) ) {
