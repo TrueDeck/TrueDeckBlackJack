@@ -879,22 +879,25 @@ contract TrueDeckBlackJack is Ownable {
     using strings for *;
     using SafeMath for uint256;
 
-    event FutureBlock(uint256 blockNumber);
-    event Result(bytes32 gameId, uint64 round, uint256 payout, uint8 playerScore, uint8 dealerScore);
+    event GameCreated(address player);
+    event NewRound(address player, uint64 round, uint256 bet);
+    event StageChanged(address player, uint64 round, Stage newStage);
+    event BlockElected(address player, uint256 blockNumber);
+    event Result(address player, uint64 round, uint8 playerScore, uint8 dealerScore, uint256 payout, uint256 credits);
 
-    event Info(string message);
-    event Error(uint8 errorCode);
+    event Info(address player, string code, string message);
+    event Error(address player, string code, string message);
 
     enum Stage {
         SitDown,
     	Bet,
-    	Play
+    	Play,
+        Stand
     }
 
     struct Game {
-        bytes32 id;
-        uint256 startBlock;
         uint64 round;
+        uint256 startBlock;
         Stage stage;
         uint256 credits;
 
@@ -916,6 +919,8 @@ contract TrueDeckBlackJack is Ownable {
 
     mapping(address => Game) public games;
 
+    string public constant TEST_SEED = "TEST SEED FOR BLACKJACK";
+
     constructor() public {
 
     }
@@ -928,11 +933,10 @@ contract TrueDeckBlackJack is Ownable {
         return games[msg.sender].credits;
     }
 
-    function getGameState() public view returns (bytes32 gameId, uint256 startBlock, uint64 round, Stage stage) {
+    function getGameState() public view returns (uint64 round, uint256 startBlock, Stage stage) {
         Game storage game = games[msg.sender];
-        gameId = game.id;
-        startBlock = game.startBlock;
         round = game.round;
+        startBlock = game.startBlock;
         stage = game.stage;
     }
 
@@ -944,7 +948,7 @@ contract TrueDeckBlackJack is Ownable {
         _;
     }
 
-    modifier atNotStage(Stage _stage) {
+    modifier notAtStage(Stage _stage) {
         require(
             games[msg.sender].stage != _stage,
             "Function cannot be called at this time."
@@ -954,21 +958,11 @@ contract TrueDeckBlackJack is Ownable {
 
     function nextStage(Game storage game) private {
         game.stage = Stage(uint8(game.stage) + 1);
-    }
-
-    function reset(Game storage game) private {
-        game.stage = Stage.Bet;
-        game.bet = 0;
-        game.seedhash = "";
-        delete game.blocks;
-        delete game.actions;
+        emit StageChanged(msg.sender, game.round, game.stage);
     }
 
     function initGame() public atStage(Stage.SitDown) {
-        bytes32 gameID = keccak256(abi.encodePacked(block.timestamp, msg.sender));
-
         games[msg.sender] = Game({
-                                id: gameID,
                                 round: 0,
                                 startBlock: block.number,
                                 stage: Stage.SitDown,
@@ -979,10 +973,11 @@ contract TrueDeckBlackJack is Ownable {
                                 actions: new uint8[](0)
                             });
 
+        emit GameCreated(msg.sender);
         nextStage(games[msg.sender]);
     }
 
-    function newRound(bytes32 _seedhash, uint256 bet) public atNotStage(Stage.SitDown) {
+    function newRound(bytes32 _seedhash, uint256 bet) public notAtStage(Stage.SitDown) {
         Game storage game = games[msg.sender];
 
         game.seedhash = _seedhash;
@@ -991,83 +986,104 @@ contract TrueDeckBlackJack is Ownable {
 
         game.round++;
         game.startBlock = block.number;
+        game.stage = Stage.Bet;
 
+        game.blocks.length = 0;
+        game.actions.length = 0;
+
+        emit Info(msg.sender, "BLOCKS", uint2str(games[msg.sender].blocks.length));
+        emit Info(msg.sender, "ACTIONS", uint2str(games[msg.sender].actions.length));
+
+        emit NewRound(msg.sender, game.round, game.bet);
         nextStage(game);
-        fixFutureBlock(game, 1);    // ACTION: DEAL
+        electBlock(game, 1);    // ACTION: DEAL
     }
 
     function hit() public atStage(Stage.Play) {
-        Game storage game = games[msg.sender];
-        fixFutureBlock(game, 2);    // ACTION: HIT
+        electBlock(games[msg.sender], 2);    // ACTION: HIT
     }
 
     function stand() public atStage(Stage.Play) {
         Game storage game = games[msg.sender];
-        fixFutureBlock(game, 3);    // ACTION: STAND
+        nextStage(game);
+        electBlock(game, 3);    // ACTION: STAND
     }
 
-    function fixFutureBlock(Game storage game, uint8 action) private {
-        game.blocks.push(block.number+1);
+    function electBlock(Game storage game, uint8 action) private {
+        game.blocks.push(block.number);
         game.actions.push(action);
-        emit FutureBlock(block.number+1);
+        emit BlockElected(msg.sender, block.number);
     }
 
-    function claim(uint256 seed) public atStage(Stage.Play) {
+    function claim(uint256 seed) public {
         Game storage game = games[msg.sender];
 
-        if (game.seedhash == keccak256(seed)) {
-            concludeGame(game, seed);
-            reset(game);
-        } else {
-            emit Error(105);
-        }
-    }
+        /* if (game.seedhash == keccak256(seed)) { */
+            Hand memory playerHand = Hand(0, 0, 0);
+            Hand memory dealerHand = Hand(0, 0, 0);
 
-    function concludeGame(Game storage game, uint256 seed) private {
-        Hand memory playerHand = Hand(0, 0, 0);
-        Hand memory dealerHand = Hand(0, 0, 0);
+            // Replay game actions
+            uint256 cardSeed = 0;
 
-        // Replay game actions
-        for (uint8 i = 0; i < game.blocks.length; i++) {
-            uint256 cardSeed = uint256(keccak256(abi.encodePacked(seed, blockhash(game.blocks[i]))));
-            uint8 action = game.actions[i];
-            if (action == 1) {
-                // DEAL
-                drawCard(playerHand, uint8((cardSeed & 255) % 13));
-                drawCard(dealerHand, uint8(((cardSeed >> 2) & 255) % 13));
-                drawCard(playerHand, uint8(((cardSeed >> 4) & 255) % 13));
-            } else if (action == 2) {
-                // HIT
-                drawCard(playerHand, uint8((cardSeed & 255) % 13));
-            } else if (action == 3) {
-                // STAND
-                drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+            for (uint8 i = 0; i < game.blocks.length; i++) {
+                cardSeed = uint256(keccak256(abi.encodePacked(TEST_SEED, blockhash(game.blocks[i]))));
+                uint8 action = game.actions[i];
 
-                // Dealer must draw to 16 and stand on all 17's
-                while (getScore(dealerHand) < 17) {
+                if (action == 1) {
+                    // DEAL
+                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
                     cardSeed = cardSeed >> 2;
                     drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                    cardSeed = cardSeed >> 2;
+                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    cardSeed = cardSeed >> 2;
+                } else if (action == 2) {
+                    // HIT
+                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    cardSeed = cardSeed >> 2;
+                } else if (action == 3) {
+                    break;
                 }
-            } else {
-                emit Error(104);
             }
-        }
 
-        uint8 playerScore = getScore(playerHand);
-        uint8 dealerScore = getScore(dealerHand);
-        uint256 payout = 0;
+            uint8 playerScore = getScore(playerHand);
 
-        if ((playerScore == 21 && playerHand.length == 2) && !(dealerScore == 21 && dealerHand.length == 2)) {
-            payout = game.bet * 3;
-        } else if (playerScore > dealerScore || dealerScore > 21) {
-            payout = game.bet * 2;
-        } else if (playerScore == dealerScore) {
-            payout = game.bet;
-        }
+            // If player has lost
+            if (playerScore > 21) {
+                return;
+            }
 
-        game.credits = game.credits.add(payout);
+            uint8 dealerScore = 0;
+            // If player score is 21 or less / action is STAND
+            // if (playerScore == 21 || action == 3) {     // No need to check, always true
+                // Draw cards for dealer
+                drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                cardSeed = cardSeed >> 2;
 
-        emit Result(game.id, game.round, payout, playerScore, dealerScore);
+                // Dealer must draw to 16 and stand on all 17's
+                dealerScore = getScore(dealerHand);
+                while (dealerScore < 17) {
+                    drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                    cardSeed = cardSeed >> 2;
+                    dealerScore = getScore(dealerHand);
+                }
+            // }
+
+            uint256 payout = 0;
+            if ((playerScore == 21 && playerHand.length == 2) && !(dealerScore == 21 && dealerHand.length == 2)) {
+                payout = game.bet * 3;
+            } else if (playerScore > dealerScore || dealerScore > 21) {
+                payout = game.bet * 2;
+            } else if (playerScore == dealerScore) {
+                payout = game.bet;
+            }
+
+            game.credits = game.credits.add(payout);
+
+            emit Result(msg.sender, game.round, playerScore, dealerScore, payout, game.credits);
+        /* } else {
+            emit Error(105);
+        } */
     }
 
     function drawCard(Hand hand, uint8 card) private view {
