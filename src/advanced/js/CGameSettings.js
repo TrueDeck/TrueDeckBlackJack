@@ -22,7 +22,7 @@ function CGameSettings(){
             }
         }
 
-        _aFichesValue=new Array(1,5,10,25,100);
+        _aFichesValue=new Array(0.1,1,5,10,25,100);
     };
 
     this.getFichesValues = function(){
