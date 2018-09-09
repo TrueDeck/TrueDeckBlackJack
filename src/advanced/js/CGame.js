@@ -19,6 +19,9 @@ function CGame(oData){
           DApp.web3Provider = window.web3.currentProvider;
           DApp.web3 = new Web3(DApp.web3Provider);
           log.debug("Web3 initialized. Window web3 version = " + window.web3.version.api + ", DApp web3 Version = " + DApp.web3.version);
+
+          var seedhash1 = DApp.web3.utils.keccak256(TEST_SEED);
+          log.debug(seedhash1);
         } else {
           log.error("No web wallet found! Please use MetaMask!");
         }
@@ -134,12 +137,16 @@ function CGame(oData){
                         }
                         break;
 
-                    case "Info":
+                    case "Info1":
                         log.debug("Info #" + eventLog.args.code + ": " + eventLog.args.message + " : " + DApp.web3.utils.toBN(eventLog.args.number));
                         break;
 
+                    case "Info2":
+                        log.debug("Info #" + eventLog.args.code + ": " + eventLog.args.message + " : " + eventLog.args.number);
+                        break;
+
                     case "Error":
-                        log.debug("Error #" + eventLog.args.code + ": " + eventLog.args.message);
+                        log.debug("Error #" + eventLog.args.code + ": " + eventLog.args.message + " : " + DApp.web3.utils.toBN(eventLog.args.number));
                         break;
               }
           }
@@ -164,7 +171,7 @@ function CGame(oData){
           log.info("Action: Deal, waiting for TX to be mined.");
           DApp.state.callback = callback;
           DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-              return instance.newRound(TEST_SEED, betValue, {from: DApp.state.account});
+              return instance.newRound(DApp.web3.utils.keccak256(TEST_SEED), betValue, {from: DApp.state.account});
           }).then(function(result) {
               log.info("TX mined.");
               console.log(result);
@@ -222,6 +229,7 @@ function CGame(oData){
               case 0: return "SitDown";
               case 1: return "Bet";
               case 2: return "Play";
+              case 3: return "Stand";
               default: return "default";
           }
       }
@@ -831,16 +839,16 @@ function CGame(oData){
     this.drawCard = function(isDealer) {
         log.debug("Drawing card using seed: " + DApp.state.cardSeed);
 
-        const BN13 = DApp.web3.utils.toBN(13);
+        const BN52 = DApp.web3.utils.toBN(52);
         const BN255 = DApp.web3.utils.toBN(255);
-        var card = DApp.state.cardSeed.and(BN255).mod(BN13).toNumber();
+        var card = DApp.state.cardSeed.and(BN255).mod(BN52).toNumber();
         DApp.state.cardSeed = DApp.state.cardSeed.shrn(2);
 
         if (isDealer) {
-            log.debug("Dealer Card: " + card);
+            log.debug("Dealer Card: " + s_oGameSettings.getCard(card) + " (" + card + ")");
             _aCardsInCurHandForDealer.push(card);
         } else {
-            log.debug("Player Card: " + card);
+            log.debug("Player Card: " + s_oGameSettings.getCard(card) + " (" + card + ")");
             _aCardsInCurHandForPlayer.push(card);
         }
 
@@ -897,26 +905,28 @@ function CGame(oData){
     this.drawCardForDealer = function(){
         log.debug("Show Dealer card on Stand");
 
-        var card = this.drawCard(true);
-        var value = s_oGameSettings.getCardValue(card);
-
         var dealerScore = _iDealerValueCard;
+        var numberOfAces = _iAcesForDealer;
 
         log.debug("Drawing dealer cards to 16...");
-        while (true) {
-            if (value === 11 && (dealerScore + value) > 21){
-                value = 1;
-            }
-            dealerScore += value;
-
-            if (dealerScore >= 17) {
-                break;
-            }
-
+        do {
             card = this.drawCard(true);
             value = s_oGameSettings.getCardValue(card);
-        }
+
+            if (value == 11) {
+                numberOfAces++;
+            }
+            dealerScore += value;
+        } while (this.getScore(dealerScore, numberOfAces) < 17);
     };
+
+    this.getScore = function(score, numberOfAces){
+        while (numberOfAces > 0 && score > 21) {
+            score -= 10;
+            numberOfAces--;
+        }
+        return score;
+    }
 
     // Using DOUBLE button as CLAIM button for now
     this.onDouble = function(){

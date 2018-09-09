@@ -885,8 +885,9 @@ contract TrueDeckBlackJack is Ownable {
     event BlockElected(address player, uint256 blockNumber);
     event Result(address player, uint64 round, uint8 playerScore, uint8 dealerScore, uint256 payout, uint256 credits);
 
-    event Info(address player, string code, string message, uint256 number);
-    event Error(address player, string code, string message);
+    event Info1(address player, string code, string message, uint256 number);
+    event Info2(address player, string code, string message, bytes32 number);
+    event Error(address player, string code, string message, uint256 number);
 
     enum Stage {
         SitDown,
@@ -916,11 +917,7 @@ contract TrueDeckBlackJack is Ownable {
 
     uint8[13] cardPoints = [11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
 
-    string[13] cardRanks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
-
     mapping(address => Game) public games;
-
-    string public constant TEST_SEED = "TEST SEED FOR BLACKJACK";
 
     constructor() public {
 
@@ -1015,7 +1012,10 @@ contract TrueDeckBlackJack is Ownable {
     function claim(string seed) public {
         Game storage game = games[msg.sender];
 
-        /* if (game.seedhash == keccak256(seed)) { */
+        emit Info2(msg.sender, "SEEDHASH", "Expected", keccak256(seed));
+        emit Info2(msg.sender, "SEEDHASH", "Comitted", game.seedhash);
+
+        if (game.seedhash == keccak256(seed)) {
             Hand memory playerHand = Hand(0, 0, 0);
             Hand memory dealerHand = Hand(0, 0, 0);
 
@@ -1023,21 +1023,21 @@ contract TrueDeckBlackJack is Ownable {
             uint256 cardSeed = 0;
 
             for (uint256 i = game.offset; i < game.blocks.length; i++) {
-                cardSeed = uint256(keccak256(abi.encodePacked(TEST_SEED, blockhash(game.blocks[i]))));
-                emit Info(msg.sender, "CARD", "", cardSeed);
+                cardSeed = uint256(keccak256(abi.encodePacked(seed, blockhash(game.blocks[i]))));
+                emit Info1(msg.sender, "CARD", "", cardSeed);
                 uint8 action = game.actions[i];
 
                 if (action == 1) {
                     // DEAL
-                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    drawCard(playerHand, uint8((cardSeed & 255) % 52));
                     cardSeed = cardSeed >> 2;
-                    drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                    drawCard(dealerHand, uint8((cardSeed & 255) % 52));
                     cardSeed = cardSeed >> 2;
-                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    drawCard(playerHand, uint8((cardSeed & 255) % 52));
                     cardSeed = cardSeed >> 2;
                 } else if (action == 2) {
                     // HIT
-                    drawCard(playerHand, uint8((cardSeed & 255) % 13));
+                    drawCard(playerHand, uint8((cardSeed & 255) % 52));
                     cardSeed = cardSeed >> 2;
                 } else if (action == 3) {
                     break;
@@ -1048,7 +1048,7 @@ contract TrueDeckBlackJack is Ownable {
 
             // If player has lost
             if (playerScore > 21) {
-                emit Info(msg.sender, "RESULT", "Lost!", playerScore);
+                emit Info1(msg.sender, "RESULT", "Lost!", playerScore);
                 return;
             }
 
@@ -1056,13 +1056,13 @@ contract TrueDeckBlackJack is Ownable {
             // If player score is 21 or less / action is STAND
             // if (playerScore == 21 || action == 3) {     // No need to check, always true
                 // Draw cards for dealer
-                drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                drawCard(dealerHand, uint8((cardSeed & 255) % 52));
                 cardSeed = cardSeed >> 2;
 
                 // Dealer must draw to 16 and stand on all 17's
                 dealerScore = getScore(dealerHand);
                 while (dealerScore < 17) {
-                    drawCard(dealerHand, uint8((cardSeed & 255) % 13));
+                    drawCard(dealerHand, uint8((cardSeed & 255) % 52));
                     cardSeed = cardSeed >> 2;
                     dealerScore = getScore(dealerHand);
                 }
@@ -1080,15 +1080,16 @@ contract TrueDeckBlackJack is Ownable {
             game.credits = game.credits.add(payout);
 
             emit Result(msg.sender, game.round, playerScore, dealerScore, payout, game.credits);
-        /* } else {
-            emit Error(105);
-        } */
+        } else {
+            emit Error(msg.sender, "WRONG_SEED", "", 0);
+        }
     }
 
     function drawCard(Hand hand, uint8 card) private view {
         hand.length++;
-        hand.score += cardPoints[card];
-        if (card == 0) hand.numberOfAces++;
+        uint8 value = cardPoints[card % 13];
+        hand.score += value;
+        if (value == 11) hand.numberOfAces++;
     }
 
     function getScore(Hand hand) private pure returns (uint8) {

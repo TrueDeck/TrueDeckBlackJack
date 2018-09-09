@@ -4,6 +4,7 @@ function CGameSettings(){
     var _aShuffledCardDecks;
     var _aCardValue;
     var _aFichesValue;
+    var _cardRanks;
 
     this._init = function(){
         _aCardValue=new Array();
@@ -23,6 +24,7 @@ function CGameSettings(){
         }
 
         _aFichesValue=new Array(0.1,1,5,10,25,100);
+        _cardRanks=new Array("A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K");
     };
 
     this.getFichesValues = function(){
@@ -108,6 +110,10 @@ function CGameSettings(){
 
     this.getCardValue = function(iId){
             return _aCardValue[iId];
+    };
+
+    this.getCard = function(iId){
+            return _cardRanks[iId%13];
     };
 
     this.getRandDealerPattern = function(){
