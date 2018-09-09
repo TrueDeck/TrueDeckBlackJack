@@ -129,12 +129,13 @@ function CGame(oData){
                     case "Result":
                         log.debug("Round #" + eventLog.args.round.toNumber() + ", PScore:" + eventLog.args.playerScore.toNumber() + ", DScore:" + eventLog.args.dealerScore.toNumber() + ", Payout:" + eventLog.args.payout.toNumber() + ", Credits:" + eventLog.args.credits.toNumber());
                         DApp.game.setCredit(eventLog.args.credits.toNumber());
-                        DApp.game.enableBetFiches();
-                        DApp.game.enableButtons(true,false,false,false,false);
+                        if (DApp.state.callback) {
+                             DApp.state.callback();
+                        }
                         break;
 
                     case "Info":
-                        log.debug("Info #" + eventLog.args.code + ": " + eventLog.args.message);
+                        log.debug("Info #" + eventLog.args.code + ": " + eventLog.args.message + " : " + DApp.web3.utils.toBN(eventLog.args.number));
                         break;
 
                     case "Error":
@@ -202,10 +203,11 @@ function CGame(oData){
           });
       },
 
-      claim: function() {
+      claim: function(seed, callback) {
           log.info("Action: Claim, waiting for TX to be mined.");
+          DApp.state.callback = callback;
           DApp.contracts.TrueDeckBlackJack.deployed().then(function(instance) {
-              return instance.claim(TEST_SEED, {from: DApp.state.account});
+              return instance.claim(seed, {from: DApp.state.account});
           }).then(function(result) {
               log.info("TX mined.");
               console.log(result);
@@ -226,6 +228,7 @@ function CGame(oData){
     };
 
     var _bUpdate = false;
+    var _playerLost;
     var _bPlayerTurn;
     var _bSplitActive;
     var _bDoubleForPlayer;
@@ -347,6 +350,7 @@ function CGame(oData){
     };
 
     this.reset = function(bFirstPlay){
+        _playerLost=false;
         _bPlayerTurn=true;
         _bSplitActive=false;
         _bDoubleForPlayer=false;
@@ -529,7 +533,7 @@ function CGame(oData){
 
         var iTotalWin = _oSeat.getBetForHand(iHand) + parseFloat((_oSeat.getBetForHand(iHand) * iMult).toFixed(2));
 
-        _oSeat.increaseCredit(iTotalWin);
+        // _oSeat.increaseCredit(iTotalWin);
         _iGameCash -= iTotalWin;
 
         _oSeat.showWinner(iHand,TEXT_SHOW_WIN_PLAYER,iTotalWin);
@@ -545,6 +549,7 @@ function CGame(oData){
     };
 
     this._playerLose = function(iHand){
+        _playerLost = true;
         _oSeat.showWinner(iHand,TEXT_SHOW_LOSE_PLAYER,0);
         _oInterface.displayMsg(TEXT_DISPLAY_MSG_PLAYER_LOSE);
 
@@ -558,7 +563,7 @@ function CGame(oData){
     };
 
     this.playerStandOff = function(iHand){
-        _oSeat.increaseCredit(_oSeat.getBetForHand(iHand));
+        // _oSeat.increaseCredit(_oSeat.getBetForHand(iHand));
         _iGameCash -= _oSeat.getBetForHand(iHand);
 
          _oSeat.showWinner(iHand,TEXT_SHOW_STANDOFF,0);
@@ -653,6 +658,12 @@ function CGame(oData){
     };
 
     this._onEndHand = function(){
+        if (_playerLost) {
+            s_oGame.onEndHandComplete();
+        }
+    };
+
+    this.onEndHandComplete = function(){
         var pRemoveOffset=new CVector2(_oRemoveCardsOffset.getX(),_oRemoveCardsOffset.getY());
 
         for (var i=0;i<_aDealerCards.length;i++){
@@ -681,9 +692,7 @@ function CGame(oData){
             _iAdsCounter = 0;
             $(s_oMain).trigger("show_interlevel_ad");
         }
-
-
-    };
+    }
 
     this.ficheSelected = function(iFicheValue,iFicheIndex){
         var iCurBet=_oSeat.getCurBet();
@@ -911,7 +920,7 @@ function CGame(oData){
 
     // Using DOUBLE button as CLAIM button for now
     this.onDouble = function(){
-
+        DApp.claim(TEST_SEED, this.onEndHandComplete.bind(this));
     };
 
     // this.onDouble = function(){
