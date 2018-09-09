@@ -885,7 +885,7 @@ contract TrueDeckBlackJack is Ownable {
     event BlockElected(address player, uint256 blockNumber);
     event Result(address player, uint64 round, uint8 playerScore, uint8 dealerScore, uint256 payout, uint256 credits);
 
-    event Info(address player, string code, string message);
+    event Info(address player, string code, string message, uint256 number);
     event Error(address player, string code, string message);
 
     enum Stage {
@@ -903,6 +903,7 @@ contract TrueDeckBlackJack is Ownable {
 
         uint256 bet;
         bytes32 seedhash;
+        uint256 offset;
         uint256[] blocks;
         uint8[] actions;        // 1-Deal, 2-Hit, 3-Stand
     }
@@ -969,6 +970,7 @@ contract TrueDeckBlackJack is Ownable {
                                 credits: 1000,
                                 bet: 0,
                                 seedhash: "",
+                                offset: 0,
                                 blocks: new uint256[](0),
                                 actions: new uint8[](0)
                             });
@@ -987,12 +989,7 @@ contract TrueDeckBlackJack is Ownable {
         game.round++;
         game.startBlock = block.number;
         game.stage = Stage.Bet;
-
-        game.blocks.length = 0;
-        game.actions.length = 0;
-
-        emit Info(msg.sender, "BLOCKS", uint2str(games[msg.sender].blocks.length));
-        emit Info(msg.sender, "ACTIONS", uint2str(games[msg.sender].actions.length));
+        game.offset = game.blocks.length;
 
         emit NewRound(msg.sender, game.round, game.bet);
         nextStage(game);
@@ -1015,7 +1012,7 @@ contract TrueDeckBlackJack is Ownable {
         emit BlockElected(msg.sender, block.number);
     }
 
-    function claim(uint256 seed) public {
+    function claim(string seed) public {
         Game storage game = games[msg.sender];
 
         /* if (game.seedhash == keccak256(seed)) { */
@@ -1025,8 +1022,9 @@ contract TrueDeckBlackJack is Ownable {
             // Replay game actions
             uint256 cardSeed = 0;
 
-            for (uint8 i = 0; i < game.blocks.length; i++) {
+            for (uint256 i = game.offset; i < game.blocks.length; i++) {
                 cardSeed = uint256(keccak256(abi.encodePacked(TEST_SEED, blockhash(game.blocks[i]))));
+                emit Info(msg.sender, "CARD", "", cardSeed);
                 uint8 action = game.actions[i];
 
                 if (action == 1) {
@@ -1050,6 +1048,7 @@ contract TrueDeckBlackJack is Ownable {
 
             // If player has lost
             if (playerScore > 21) {
+                emit Info(msg.sender, "RESULT", "Lost!", playerScore);
                 return;
             }
 
