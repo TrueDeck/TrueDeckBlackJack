@@ -70,7 +70,7 @@ function CGame(oData){
                 s_oGame.hideSitDownButton();
             }
 
-            if (blockNumber === 0 || blockNumber === 1) {
+            // if (blockNumber === 0 || blockNumber === 1) {
                 DApp.web3.eth.getBlockNumber(function(error, currentBlockNumber) {
                     log.debug("Watching events from current block#" + currentBlockNumber);
                     DApp.blackjackInstance.allEvents({fromBlock: currentBlockNumber, toBlock: 'latest'})
@@ -81,16 +81,16 @@ function CGame(oData){
                             }
                         });
                 });
-            } else {
-                log.debug("Watching events from round start block#" + blockNumber);
-                DApp.blackjackInstance.allEvents({fromBlock: blockNumber, toBlock: 'latest'})
-                    .watch(function(error, eventLog) {
-                        if (eventLog.args.player && DApp.state.account
-                            && eventLog.args.player.toLowerCase() === DApp.state.account.toLowerCase()) {
-                            DApp.watchEvents(error, eventLog);
-                        }
-                    });
-            }
+            // } else {
+            //     log.debug("Watching events from round start block#" + blockNumber);
+            //     DApp.blackjackInstance.allEvents({fromBlock: blockNumber, toBlock: 'latest'})
+            //         .watch(function(error, eventLog) {
+            //             if (eventLog.args.player && DApp.state.account
+            //                 && eventLog.args.player.toLowerCase() === DApp.state.account.toLowerCase()) {
+            //                 DApp.watchEvents(error, eventLog);
+            //             }
+            //         });
+            // }
         });
       },
 
@@ -147,6 +147,7 @@ function CGame(oData){
                         log.debug("Round #" + eventLog.args.round.toNumber() + ", PScore:" + eventLog.args.playerScore.toNumber() + ", DScore:" + eventLog.args.dealerScore.toNumber() + ", Payout:" + eventLog.args.payout.toNumber() + ", Credits:" + eventLog.args.credits.toNumber());
                         s_oGame.setCredit(eventLog.args.credits.toNumber());
                         s_oGame.onEndHandComplete();
+                        s_oGame.displayMsg(TEXT_TD_WINNING_CREDITED,TEXT_TD_START_NEW_ROUND+TEXT_TD_PLACE_BET_INFO);
                         break;
 
                     case "Info1":
@@ -167,62 +168,81 @@ function CGame(oData){
       sitDown: function() {
           log.info("Action: SitDown, waiting for TX to be mined.");
 
+          s_oGame.displayMsg(TEXT_TD_CREATING_GAME,TEXT_TD_REGISTERING_WALLET+TEXT_TD_WAITING_TX_MINED);
           DApp.blackjackInstance.initGame({from: DApp.state.account})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
+              s_oGame.displayMsg(TEXT_TD_CREATING_GAME,TEXT_TD_REGISTERING_WALLET+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
           }).catch((err) => {
               log.error("Action: SitDown Failed!" + err);
               s_oGame.showSitDownButton();
+              s_oGame.displayMsg(TEXT_TD_SIT_DOWN,TEXT_TD_SIT_DOWN_INFO);
           });
       },
 
       deal: function(betValue) {
           log.info("Action: Deal, waiting for TX to be mined.");
+
+          s_oGame.displayMsg(TEXT_TD_PLACING_BET,TEXT_TD_PLACING_BET_INFO+TEXT_TD_WAITING_TX_MINED);
           DApp.blackjackInstance.newRound(DApp.web3.utils.keccak256(TEST_SEED), betValue, {from: DApp.state.account})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
+              s_oGame.displayMsg(TEXT_TD_PLACING_BET,TEXT_TD_PLACING_BET_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
           }).catch((err) => {
               log.error("Action: Deal Failed!" + err);
               s_oGame.enableBetFiches();
-              s_oGame.enableButtons(true,false,false,false,false);
+              s_oGame.enableButtons(true,false,false,false,false,false);
+              s_oGame.displayMsg(TEXT_TD_PLACE_BET,TEXT_TD_PLACE_BET_INFO);
           });
       },
 
       hit: function() {
           log.info("Action: Hit, waiting for TX to be mined.");
+
+          s_oGame.displayMsg(TEXT_TD_HIT_ACTION,TEXT_TD_HIT_ACTION_INFO+TEXT_TD_WAITING_TX_MINED);
           DApp.blackjackInstance.hit({from: DApp.state.account})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
+              s_oGame.displayMsg(TEXT_TD_HIT_ACTION,TEXT_TD_HIT_ACTION_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
           }).catch((err) => {
               log.error("Action: Hit Failed!" + err);
-              s_oGame.enableButtons(false,true,true,false,false);
+              s_oGame.enableButtons(false,true,true,false,false,false);
+              s_oGame.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
           });
       },
 
       stand: function() {
           log.info("Action: Stand, waiting for TX to be mined.");
+
+          s_oGame.displayMsg(TEXT_TD_STAND_ACTION,TEXT_TD_STAND_ACTION_INFO+TEXT_TD_WAITING_TX_MINED);
           DApp.blackjackInstance.stand({from: DApp.state.account})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
+              s_oGame.displayMsg(TEXT_TD_STAND_ACTION,TEXT_TD_STAND_ACTION_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
           }).catch((err) => {
               log.error("Action: Stand Failed!" + err);
-              s_oGame.enableButtons(false,true,true,false,false);
+              s_oGame.enableButtons(false,true,true,false,false,false);
+              s_oGame.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
           });
       },
 
       claim: function(seed) {
           log.info("Action: Claim, waiting for TX to be mined.");
+
+          s_oGame.displayMsg(TEXT_TD_CLAIM_ACTION,TEXT_TD_CLAIM_ACTION_INFO+TEXT_TD_WAITING_TX_MINED);
           DApp.blackjackInstance.claim(seed, {from: DApp.state.account})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
+              s_oGame.displayMsg(TEXT_TD_CLAIM_ACTION,TEXT_TD_CLAIM_ACTION_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
           }).catch((err) => {
               log.error("Action: Claim Failed!" + err);
-              s_oGame.enableButtons(false,false,false,true,false);
+              s_oGame.enableButtons(false,false,false,false,false,true);
+              s_oGame.displayMsg(TEXT_TD_PLAYER_WIN,TEXT_TD_CLAIM_INFO);
           });
       },
 
@@ -305,7 +325,7 @@ function CGame(oData){
         s_oStage.addChild(_oCardContainer);
 
         _oInterface = new CInterface(TOTAL_MONEY);
-        _oInterface.displayMsg(TEXT_DISPLAY_MSG_SIT_DOWN);
+        _oInterface.displayMsg(TEXT_TD_SIT_DOWN,TEXT_TD_SIT_DOWN_INFO);
 
         this.reset(true);
 
@@ -548,7 +568,7 @@ function CGame(oData){
         _iGameCash -= iTotalWin;
 
         _oSeat.showWinner(iHand,TEXT_SHOW_WIN_PLAYER,iTotalWin);
-        _oInterface.displayMsg(TEXT_DISPLAY_MSG_PLAYER_WIN);
+        _oInterface.displayMsg(TEXT_TD_PLAYER_WIN,TEXT_TD_CLAIM_INFO);
 
         _oSeat.initMovement(iHand,_oReceiveWinOffset.getX(),_oReceiveWinOffset.getY());
 
@@ -562,7 +582,7 @@ function CGame(oData){
     this._playerLose = function(iHand){
         _playerLost = true;
         _oSeat.showWinner(iHand,TEXT_SHOW_LOSE_PLAYER,0);
-        _oInterface.displayMsg(TEXT_DISPLAY_MSG_PLAYER_LOSE);
+        _oInterface.displayMsg(TEXT_TD_PLAYER_LOSE,TEXT_TD_START_NEW_ROUND+TEXT_TD_PLACE_BET_INFO);
 
         _oSeat.initMovement(iHand,_oFichesDealerOffset.getX(),_oFichesDealerOffset.getY());
 
@@ -654,13 +674,13 @@ function CGame(oData){
             if (_oSeat.getHandValue(i)>21){
                     this._playerLose(i);
             } else if (_iDealerValueCard>21){
-                    _oInterface.enable(false,false,false,true,false);
+                    _oInterface.enable(false,false,false,false,false,true);
                     this._playerWin(i);
             } else if (_oSeat.getHandValue(i)<22 && _oSeat.getHandValue(i)>_iDealerValueCard){
-                    _oInterface.enable(false,false,false,true,false);
+                    _oInterface.enable(false,false,false,false,false,true);
                     this._playerWin(i);
             } else if (_oSeat.getHandValue(i) === _iDealerValueCard){
-                    _oInterface.enable(false,false,false,true,false);
+                    _oInterface.enable(false,false,false,false,false,true);
                     this.playerStandOff(i);
             } else {
                 this._playerLose(i);
@@ -708,7 +728,8 @@ function CGame(oData){
     this.ficheSelected = function(iFicheValue,iFicheIndex){
         var iCurBet=_oSeat.getCurBet();
 
-        if ( (iCurBet+iFicheValue) <= _iMaxBet && iFicheValue <= _oSeat.getCredit() ){
+        // if ( (iCurBet+iFicheValue) <= _iMaxBet && iFicheValue <= _oSeat.getCredit() ){
+        if (iFicheValue <= _oSeat.getCredit() ){
             iCurBet+=iFicheValue;
             iCurBet=Number(iCurBet.toFixed(1));
 
@@ -719,7 +740,7 @@ function CGame(oData){
             _oSeat.refreshFiches(iFicheValue,iFicheIndex,0,0);
 
             _oSeat.bet(iCurBet,false);
-            _oInterface.enable(true,false,false,false,false);
+            _oInterface.enable(true,false,false,false,false,false);
             _oInterface.refreshCredit(_oSeat.getCredit());
         }
     };
@@ -745,7 +766,8 @@ function CGame(oData){
                 iFicheIndex--;
             }
 
-            if ( (iCurBet+iFicheValue) <= _iMaxBet && iFicheValue <= _oSeat.getCredit() ){
+            // if ( (iCurBet+iFicheValue) <= _iMaxBet && iFicheValue <= _oSeat.getCredit() ){
+            if (iFicheValue <= _oSeat.getCredit() ){
                 iCurBet+=iFicheValue;
                 _iGameCash += iFicheValue;
                 _oSeat.refreshFiches(iFicheValue,iFicheIndex,0,0);
@@ -776,13 +798,13 @@ function CGame(oData){
             if (_oSeat.isSplitAvailable() && _oSeat.getCredit() >= _oSeat.getCurBet()*1.5){
                     bActivateSplit=true;
             }
-            _oInterface.displayMsg(TEXT_DISPLAY_MSG_YOUR_ACTION);
+            _oInterface.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
 
             var bActivateDouble=false;
             if (_oSeat.getNumCardsForHand(0) === 2 &&  _oSeat.getHandValue(0) > 8 && _oSeat.getHandValue(0) < 16 && _oSeat.getCredit() >= _oSeat.getCurBet() && !_bSplitActive){
                     bActivateDouble=true;
             }
-            _oInterface.enable(false,true,true,bActivateDouble,bActivateSplit);
+            _oInterface.enable(false,true,true,bActivateDouble,bActivateSplit,false);
 
             //SHOW INSURANCE PANEL
 
@@ -816,7 +838,7 @@ function CGame(oData){
             playSound("card", 1, 0);
         }
 
-        _oInterface.displayMsg(TEXT_DISPLAY_MSG_DEALER_TURN);
+        _oInterface.displayMsg(TEXT_TD_DEALER_TURN,TEXT_TD_DEALER_TURN_INFO);
     };
 
     this._gameOver = function(){
@@ -828,7 +850,7 @@ function CGame(oData){
     };
 
     this._onSetPlayerActions = function(bDeal,bHit,bStand,bDouble,bSplit){
-        _oInterface.enable(bDeal,bHit,bStand,bDouble,bSplit);
+        _oInterface.enable(bDeal,bHit,bStand,bDouble,bSplit,false);
 	    _oSeat.refreshCardValue();
     };
 
@@ -852,9 +874,13 @@ function CGame(oData){
         _oSeat.setCredit(credit);
     };
 
-    this.enableButtons = function(bDealBut,bHit,bStand,bDouble,bSplit){
-        s_oInterface.enable(bDealBut,bHit,bStand,bDouble,bSplit);
+    this.enableButtons = function(bDealBut,bHit,bStand,bDouble,bSplit,bClaim){
+        s_oInterface.enable(bDealBut,bHit,bStand,bDouble,bSplit,bClaim);
     };
+
+    this.displayMsg = function(szMsg,szMsgBig){
+        _oInterface.displayMsg(szMsg,szMsgBig);
+    }
 
     this._onSitDown = function(){
         DApp.sitDown();
@@ -896,10 +922,12 @@ function CGame(oData){
         DApp.blackjackInstance.getCredits.call().then(function(credits) {
             log.debug("Setting player credits: " + credits);
             s_oGame.setCredit(credits.toNumber());
+            _oInterface.refreshCredit(_oSeat.getCredit());
             s_oGame.checkCreditBalance();
         });
         this.changeState(STATE_GAME_WAITING_FOR_BET);
         _oInterface.enableBetFiches();
+        _oInterface.displayMsg(TEXT_TD_PLACE_BET,TEXT_TD_PLACE_BET_INFO);
     };
 
     this.onDealComplete = function(){
@@ -908,16 +936,17 @@ function CGame(oData){
         this.drawCard(true);
         this.drawCard(false);
 
-        if (_iMinBet>_oSeat.getCurBet()){
-            _oMsgBox.show(TEXT_ERROR_MIN_BET);
-            s_oInterface.enableBetFiches();
-            s_oInterface.enable(true,false,false,false,false);
-            return;
-        }
+        // if (_iMinBet>_oSeat.getCurBet()){
+        //     _oMsgBox.show(TEXT_ERROR_MIN_BET);
+        //     s_oInterface.enableBetFiches();
+        //     s_oInterface.enable(true,false,false,false,false,false);
+        //     return;
+        // }
 
         this.changeState(STATE_GAME_DEALING);
 
         $(s_oMain).trigger("bet_placed",_oSeat.getCurBet());
+        _oInterface.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
     };
 
     this.onHitComplete = function(){
@@ -931,6 +960,7 @@ function CGame(oData){
         this.attachCardToDeal(pStartingPoint,pEndingPoint,false,_oSeat.newCardDealed());
 
         this.changeState(STATE_GAME_HITTING);
+        _oInterface.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
     };
 
     this.onStandComplete = function(){
@@ -963,32 +993,31 @@ function CGame(oData){
         return score;
     };
 
-    // Using DOUBLE button as CLAIM button for now
-    this.onDouble = function(){
+    this.onClaim = function(){
         DApp.claim(TEST_SEED);
     };
 
-    // this.onDouble = function(){
-    //     var iDoubleBet=_oSeat.getCurBet();
-    //
-    //     var iCurBet = iDoubleBet;
-    //     iCurBet += iDoubleBet;
-    //
-    //     _oSeat.doubleAction(iCurBet);
-    //     _oSeat.changeBet(iCurBet);
-    //     _oSeat.decreaseCredit(iDoubleBet);
-    //     _iGameCash += iDoubleBet;
-    //     if (_iGameCash < (iCurBet * 2) ) {
-    //         _bDealerLoseInCurHand = false;
-    //     }
-    //
-    //     _oSeat.bet(iCurBet);
-    //     _oInterface.refreshCredit(_oSeat.getCredit());
-    //     this.onHit();
-    //
-    //     _bDoubleForPlayer=true;
-    //     $(s_oMain).trigger("bet_placed",iDoubleBet);
-    // };
+    this.onDouble = function(){
+        var iDoubleBet=_oSeat.getCurBet();
+
+        var iCurBet = iDoubleBet;
+        iCurBet += iDoubleBet;
+
+        _oSeat.doubleAction(iCurBet);
+        _oSeat.changeBet(iCurBet);
+        _oSeat.decreaseCredit(iDoubleBet);
+        _iGameCash += iDoubleBet;
+        if (_iGameCash < (iCurBet * 2) ) {
+            _bDealerLoseInCurHand = false;
+        }
+
+        _oSeat.bet(iCurBet);
+        _oInterface.refreshCredit(_oSeat.getCredit());
+        this.onHit();
+
+        _bDoubleForPlayer=true;
+        $(s_oMain).trigger("bet_placed",iDoubleBet);
+    };
 
     this.onSplit = function(){
         if (_iGameCash < (_oSeat.getCurBet() * 4) ) {
@@ -1007,7 +1036,7 @@ function CGame(oData){
 
         _bSplitActive=true;
 
-        _oInterface.enable(false,true,true,false,false);
+        _oInterface.enable(false,true,true,false,false,false);
 
         _oSeat.setSplitHand();
         _oSeat.refreshCardValue();
@@ -1029,7 +1058,7 @@ function CGame(oData){
             _oSeat.increaseCredit(iCurBet);
             _iGameCash -= iCurBet;
             _oInterface.refreshCredit(_oSeat.getCredit());
-            _oInterface.enable(false,false,false,false,false);
+            _oInterface.enable(false,false,false,false,false,false);
         }
     };
 
@@ -1037,7 +1066,7 @@ function CGame(oData){
         this.clearBets();
 
         if (_oSeat.rebet()){
-            _oInterface.enable(true,false,false,false,false);
+            _oInterface.enable(true,false,false,false,false,false);
             _oInterface.refreshCredit(_oSeat.getCredit());
             _iTimeElaps = BET_TIME;
         } else {
@@ -1084,7 +1113,7 @@ function CGame(oData){
         //         return;
         //     }
         //     _oInterface.disableBetFiches();
-        //     _oInterface.enable(true,false,false,false,false);
+        //     _oInterface.enable(true,false,false,false,false,false);
         //     this.changeState(STATE_GAME_DEALING);
         //
         //     $(s_oMain).trigger("bet_placed",_oSeat.getCurBet());
@@ -1092,7 +1121,6 @@ function CGame(oData){
         //     var iCountDown=Math.floor((BET_TIME-_iTimeElaps)/1000);
         //    _oInterface.displayMsg(TEXT_MIN_BET+":"+_iMinBet+"\n"+TEXT_MAX_BET+":"+_iMaxBet,TEXT_DISPLAY_MSG_WAITING_BET+" "+iCountDown);
         // }
-        _oInterface.displayMsg(TEXT_MIN_BET+":"+_iMinBet+"\n"+TEXT_MAX_BET+":"+_iMaxBet,TEXT_DISPLAY_MSG_WAITING_BET);
     };
 
     this._updateDealing = function(){

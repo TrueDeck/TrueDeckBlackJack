@@ -10,8 +10,9 @@ function CInterface(iMoney){
     var _oDealBut;
     var _oHitBut;
     var _oStandBut;
-    var _oDoubleBut;
-    var _oSplitBut;
+    // var _oDoubleBut;
+    // var _oSplitBut;
+    var _oClaimBut;
     var _oAudioToggle;
     var _oMoneyText;
     var _oCurDealerCardValueText;
@@ -72,20 +73,20 @@ function CInterface(iMoney){
         _oRebetBut = new CTextButton(632,CANVAS_HEIGHT -30,oSprite,TEXT_REBET,FONT_GAME_1,"#ffffff",14,s_oStage);
         _oRebetBut.addEventListener(ON_MOUSE_UP, this._onButRebetRelease, this);
 
-        _oDisplayText1 = new createjs.Text("","bold 18px "+FONT_GAME_2, "#701d46");
-        _oDisplayText1.x = 412;
+        _oDisplayText1 = new createjs.Text("","bold 16px "+FONT_GAME_2, "#701d46");
+        _oDisplayText1.x = 380;
         _oDisplayText1.y = 20;
-	_oDisplayText1.lineWidth = 150;
+	_oDisplayText1.lineWidth = 250;
         _oDisplayText1.textAlign = "left";
-        _oDisplayText1.lineHeight = 15;
+        _oDisplayText1.lineHeight = 18;
         s_oStage.addChild(_oDisplayText1);
 
-        _oDisplayText2 = new createjs.Text("","bold 14px "+FONT_GAME_2, "#701d46");
-        _oDisplayText2.x = 412;
-        _oDisplayText2.y = 70;
-	_oDisplayText1.lineWidth = 140;
+        _oDisplayText2 = new createjs.Text("","bold 15px "+FONT_GAME_2, "#701d46");
+        _oDisplayText2.x = 380;
+        _oDisplayText2.y = 40;
+	_oDisplayText2.lineWidth = 290;
         _oDisplayText2.textAlign = "left";
-        _oDisplayText2.lineHeight = 15;
+        _oDisplayText2.lineHeight = 17;
         s_oStage.addChild(_oDisplayText2);
 
         _oCurDealerCardValueText = new createjs.Text("","bold 16px "+FONT_GAME_1, "#fff");
@@ -100,32 +101,35 @@ function CInterface(iMoney){
         oMoneyBg.y = CANVAS_HEIGHT - 100;
         s_oStage.addChild(oMoneyBg);
 
-        _oMoneyText = new createjs.Text(TEXT_CURRENCY+iMoney,"bold 29px "+FONT_GAME_2, "#701d46");
+        _oMoneyText = new createjs.Text(TEXT_CREDITS+TEXT_CURRENCY+"---","bold 29px "+FONT_GAME_2, "#701d46");
         _oMoneyText.x = 1240;
         _oMoneyText.y = CANVAS_HEIGHT - 95;
         _oMoneyText.textAlign = "center";
         s_oStage.addChild(_oMoneyText);
 
         oSprite = s_oSpriteLibrary.getSprite('but_game_bg');
-        _oDealBut = new CTextButton(908,CANVAS_HEIGHT -30,oSprite,TEXT_DEAL,FONT_GAME_1,"#ffffff",20,s_oStage);
+        _oDealBut = new CTextButton(1008,CANVAS_HEIGHT -30,oSprite,TEXT_DEAL,FONT_GAME_1,"#ffffff",20,s_oStage);
         _oDealBut.addEventListener(ON_MOUSE_UP, this._onButDealRelease, this);
 
-        _oHitBut = new CTextButton(1008,CANVAS_HEIGHT -30,oSprite,TEXT_HIT,FONT_GAME_1,"#ffffff",20,s_oStage);
+        _oHitBut = new CTextButton(1108,CANVAS_HEIGHT -30,oSprite,TEXT_HIT,FONT_GAME_1,"#ffffff",20,s_oStage);
         _oHitBut.addEventListener(ON_MOUSE_UP, this._onButHitRelease, this);
 
-        _oStandBut = new CTextButton(1108,CANVAS_HEIGHT -30,oSprite,TEXT_STAND,FONT_GAME_1,"#ffffff",20,s_oStage);
+        _oStandBut = new CTextButton(1208,CANVAS_HEIGHT -30,oSprite,TEXT_STAND,FONT_GAME_1,"#ffffff",20,s_oStage);
         _oStandBut.addEventListener(ON_MOUSE_UP, this._onButStandRelease, this);
 
-        _oDoubleBut = new CTextButton(1208,CANVAS_HEIGHT -30,oSprite,TEXT_DOUBLE,FONT_GAME_1,"#ffffff",20,s_oStage);
-        _oDoubleBut.addEventListener(ON_MOUSE_UP, this._onButDoubleRelease, this);
+        // _oDoubleBut = new CTextButton(1208,CANVAS_HEIGHT -30,oSprite,TEXT_DOUBLE,FONT_GAME_1,"#ffffff",20,s_oStage);
+        // _oDoubleBut.addEventListener(ON_MOUSE_UP, this._onButDoubleRelease, this);
 
-        _oSplitBut  = new CTextButton(1308,CANVAS_HEIGHT -30,oSprite,TEXT_SPLIT,FONT_GAME_1,"#ffffff",20,s_oStage);
-        _oSplitBut.addEventListener(ON_MOUSE_UP, this._onButSplitRelease, this);
+        // _oSplitBut  = new CTextButton(1308,CANVAS_HEIGHT -30,oSprite,TEXT_SPLIT,FONT_GAME_1,"#ffffff",20,s_oStage);
+        // _oSplitBut.addEventListener(ON_MOUSE_UP, this._onButSplitRelease, this);
+
+        _oClaimBut = new CTextButton(1308,CANVAS_HEIGHT -30,oSprite,TEXT_CLAIM,FONT_GAME_1,"#ffffff",20,s_oStage);
+        _oClaimBut.addEventListener(ON_MOUSE_UP, this._onButClaimRelease, this);
 
         //SET FICHES BUTTON
         var aPos = [{x:387,y:666},{x:447,y:666},{x:507,y:666},{x:567,y:666},{x:627,y:666},{x:687,y:666}];
         _aFiches = new Array();
-        for(var i=0;i<NUM_FICHES;i++){
+        for(var i=1;i<NUM_FICHES;i++){
             var aFichesValues=s_oGameSettings.getFichesValues();
             oSprite = s_oSpriteLibrary.getSprite('fiche_'+i);
             _aFiches[i] = new CGfxButton(aPos[i].x,aPos[i].y,oSprite,s_oStage);
@@ -173,7 +177,7 @@ function CInterface(iMoney){
     };
 
     this.enableBetFiches = function(){
-        for(var i=0;i<NUM_FICHES;i++){
+        for(var i=1;i<NUM_FICHES;i++){
             _aFiches[i].enable();
         }
         _oClearBetBut.enable();
@@ -181,7 +185,7 @@ function CInterface(iMoney){
     };
 
     this.disableBetFiches = function(){
-        for(var i=0;i<NUM_FICHES;i++){
+        for(var i=1;i<NUM_FICHES;i++){
             _aFiches[i].disable();
         }
         _oClearBetBut.disable();
@@ -196,11 +200,12 @@ function CInterface(iMoney){
         _oDealBut.disable();
         _oHitBut.disable();
         _oStandBut.disable();
-        _oDoubleBut.disable();
-        _oSplitBut.disable();
+        // _oDoubleBut.disable();
+        // _oSplitBut.disable();
+        _oClaimBut.disable();
     };
 
-    this.enable = function(bDealBut,bHit,bStand,bDouble,bSplit){
+    this.enable = function(bDealBut,bHit,bStand,bDouble,bSplit,bClaim){
         if(bDealBut){
             _oDealBut.enable();
         }else{
@@ -220,22 +225,26 @@ function CInterface(iMoney){
         }
 
         if(bDouble){
-            _oDoubleBut.disable();
             // _oDoubleBut.enable();
         }else{
-            _oDoubleBut.disable();
+            // _oDoubleBut.disable();
         }
 
         if(bSplit){
-            _oSplitBut.disable();
             // _oSplitBut.enable();
         }else{
-            _oSplitBut.disable();
+            // _oSplitBut.disable();
+        }
+
+        if(bClaim){
+            _oClaimBut.enable();
+        }else{
+            _oClaimBut.disable();
         }
     };
 
     this.refreshCredit = function(iMoney){
-        _oMoneyText.text = TEXT_CURRENCY+iMoney;
+        _oMoneyText.text = TEXT_CREDITS+TEXT_CURRENCY+iMoney;
     };
 
     this.refreshDealerCardValue = function(iDealerValue){
@@ -291,6 +300,11 @@ function CInterface(iMoney){
     this._onButSplitRelease = function(){
         this.disableButtons();
         s_oGame.onSplit();
+    };
+
+    this._onButClaimRelease = function(){
+        this.disableButtons();
+        s_oGame.onClaim();
     };
 
     this._onExit = function(){
