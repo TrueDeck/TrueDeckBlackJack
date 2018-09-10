@@ -220,13 +220,15 @@ function CInterface(iMoney){
         }
 
         if(bDouble){
-            _oDoubleBut.enable();
+            _oDoubleBut.disable();
+            // _oDoubleBut.enable();
         }else{
             _oDoubleBut.disable();
         }
 
         if(bSplit){
-            _oSplitBut.enable();
+            _oSplitBut.disable();
+            // _oSplitBut.enable();
         }else{
             _oSplitBut.disable();
         }
