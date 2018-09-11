@@ -1,5 +1,5 @@
 function CGame(oData){
-    const TEST_SEED = "TEST SEED FOR BLACKJACK";
+    var TEST_SEED = "TEST SEED FOR BLACKJACK";
 
     DApp = {
       web3Provider: null,
@@ -150,6 +150,12 @@ function CGame(oData){
                         s_oGame.displayMsg(TEXT_TD_WINNING_CREDITED,TEXT_TD_START_NEW_ROUND+TEXT_TD_PLACE_BET_INFO);
                         break;
 
+                    case "Recharge":
+                        log.debug("Credits recharged, Credits:" + eventLog.args.credits.toNumber());
+                        s_oGame.setCredit(eventLog.args.credits.toNumber());
+                        s_oGame.displayMsg(TEXT_TD_PLACE_BET,TEXT_TD_PLACE_BET_INFO);
+                        break;
+
                     case "Info1":
                         log.debug("Info #" + eventLog.args.code + ": " + eventLog.args.message + " : " + DApp.web3.utils.toBN(eventLog.args.number));
                         break;
@@ -174,7 +180,7 @@ function CGame(oData){
               log.info("TX mined.");
               console.log(result);
               s_oGame.displayMsg(TEXT_TD_CREATING_GAME,TEXT_TD_REGISTERING_WALLET+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
-          }).catch((err) => {
+          }).catch(function(err) {
               log.error("Action: SitDown Failed!" + err);
               s_oGame.showSitDownButton();
               s_oGame.displayMsg(TEXT_TD_SIT_DOWN,TEXT_TD_SIT_DOWN_INFO);
@@ -190,7 +196,7 @@ function CGame(oData){
               log.info("TX mined.");
               console.log(result);
               s_oGame.displayMsg(TEXT_TD_PLACING_BET,TEXT_TD_PLACING_BET_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
-          }).catch((err) => {
+          }).catch(function(err) {
               log.error("Action: Deal Failed!" + err);
               s_oGame.enableBetFiches();
               s_oGame.enableButtons(true,false,false,false,false,false);
@@ -207,7 +213,7 @@ function CGame(oData){
               log.info("TX mined.");
               console.log(result);
               s_oGame.displayMsg(TEXT_TD_HIT_ACTION,TEXT_TD_HIT_ACTION_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
-          }).catch((err) => {
+          }).catch(function(err) {
               log.error("Action: Hit Failed!" + err);
               s_oGame.enableButtons(false,true,true,false,false,false);
               s_oGame.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
@@ -223,7 +229,7 @@ function CGame(oData){
               log.info("TX mined.");
               console.log(result);
               s_oGame.displayMsg(TEXT_TD_STAND_ACTION,TEXT_TD_STAND_ACTION_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
-          }).catch((err) => {
+          }).catch(function(err) {
               log.error("Action: Stand Failed!" + err);
               s_oGame.enableButtons(false,true,true,false,false,false);
               s_oGame.displayMsg(TEXT_TD_YOUR_ACTION,TEXT_TD_YOUR_ACTION_INFO);
@@ -239,7 +245,7 @@ function CGame(oData){
               log.info("TX mined.");
               console.log(result);
               s_oGame.displayMsg(TEXT_TD_CLAIM_ACTION,TEXT_TD_CLAIM_ACTION_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
-          }).catch((err) => {
+          }).catch(function(err) {
               log.error("Action: Claim Failed!" + err);
               s_oGame.enableButtons(false,false,false,false,false,true);
               s_oGame.displayMsg(TEXT_TD_PLAYER_WIN,TEXT_TD_CLAIM_INFO);
@@ -250,12 +256,12 @@ function CGame(oData){
           log.info("Action: Recharge, waiting for TX to be mined.");
 
           s_oGame.displayMsg(TEXT_TD_RECHARGING,TEXT_TD_RECHARGING_INFO+TEXT_TD_WAITING_TX_MINED);
-          DApp.blackjackInstance.stand({from: DApp.state.account, gasPrice: 2000000000})
+          DApp.blackjackInstance.recharge({from: DApp.state.account, gasPrice: 2000000000})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
               s_oGame.displayMsg(TEXT_TD_RECHARGING,TEXT_TD_RECHARGING_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
-          }).catch((err) => {
+          }).catch(function(err) {
               log.error("Action: Recharge Failed!" + err);
               s_oGame.checkCreditBalance();
           });
@@ -887,6 +893,7 @@ function CGame(oData){
 
     this.setCredit = function(credit){
         _oSeat.setCredit(credit);
+        _oInterface.refreshCredit(_oSeat.getCredit());
     };
 
     this.enableButtons = function(bDealBut,bHit,bStand,bDouble,bSplit,bClaim){
@@ -913,11 +920,16 @@ function CGame(oData){
         DApp.stand();
     };
 
+    this.recharge = function(){
+        DApp.recharge();
+        _oGameOverPanel.hide();
+    };
+
     this.drawCard = function(isDealer) {
         log.debug("Drawing card using seed: " + DApp.state.cardSeed);
 
-        const BN52 = DApp.web3.utils.toBN(52);
-        const BN255 = DApp.web3.utils.toBN(255);
+        var BN52 = DApp.web3.utils.toBN(52);
+        var BN255 = DApp.web3.utils.toBN(255);
         var card = DApp.state.cardSeed.and(BN255).mod(BN52).toNumber();
         DApp.state.cardSeed = DApp.state.cardSeed.shrn(2);
 
