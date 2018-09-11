@@ -246,6 +246,21 @@ function CGame(oData){
           });
       },
 
+      recharge: function() {
+          log.info("Action: Recharge, waiting for TX to be mined.");
+
+          s_oGame.displayMsg(TEXT_TD_RECHARGING,TEXT_TD_RECHARGING_INFO+TEXT_TD_WAITING_TX_MINED);
+          DApp.blackjackInstance.stand({from: DApp.state.account, gasPrice: 2000000000})
+            .then(function(result) {
+              log.info("TX mined.");
+              console.log(result);
+              s_oGame.displayMsg(TEXT_TD_RECHARGING,TEXT_TD_RECHARGING_INFO+TEXT_TD_TX_MINED+TEXT_TD_WAITING_FOR_CONFIRMATION);
+          }).catch((err) => {
+              log.error("Action: Recharge Failed!" + err);
+              s_oGame.checkCreditBalance();
+          });
+      },
+
       getStage: function(stage) {
           switch (stage) {
               case 0: return "SitDown";

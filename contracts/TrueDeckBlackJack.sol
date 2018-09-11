@@ -117,6 +117,7 @@ contract TrueDeckBlackJack is Destructible {
     event StageChanged(address player, uint64 round, Stage newStage);
     event BlockElected(address player, uint256 blockNumber, uint8 action);
     event Result(address player, uint64 round, uint8 playerScore, uint8 dealerScore, uint256 payout, uint256 credits);
+    event Recharge(address player, uint256 credits);
 
     event Info1(address player, string code, string message, uint256 number);
     event Info2(address player, string code, string message, bytes32 number);
@@ -309,6 +310,13 @@ contract TrueDeckBlackJack is Destructible {
         } else {
             emit Error(msg.sender, "WRONG_SEED", "", 0);
         }
+    }
+
+    function recharge() public notAtStage(Stage.SitDown) {
+        Game storage game = games[msg.sender];
+        require(game.credits == 0);
+        game.credits = 1000;
+        emit Recharge(msg.sender, game.credits);
     }
 
     function drawCard(Hand hand, uint8 card) private view {

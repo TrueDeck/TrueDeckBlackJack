@@ -55,6 +55,8 @@ TEXT_TD_CLAIM_INFO                  = "Press CLAIM button to claim your winnings
 TEXT_TD_CLAIM_ACTION                = "CLAIMING YOUR WINNINGS...";
 TEXT_TD_CLAIM_ACTION_INFO           = "SmartContract replaying the game!\n";
 TEXT_TD_WINNING_CREDITED            = "WININGS CREDITED...";
+TEXT_TD_RECHARGING                  = "RECHARGING...";
+TEXT_TD_RECHARGING_INFO             = "Recharging your wallet with 1000 credits!\n";
 
 TEXT_TD_WAITING_TX_MINED            = "Waiting for transaction to be mined!\n";
 TEXT_TD_TX_MINED                    = "Transaction has been mined!\n";
