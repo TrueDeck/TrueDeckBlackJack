@@ -169,7 +169,7 @@ function CGame(oData){
           log.info("Action: SitDown, waiting for TX to be mined.");
 
           s_oGame.displayMsg(TEXT_TD_CREATING_GAME,TEXT_TD_REGISTERING_WALLET+TEXT_TD_WAITING_TX_MINED);
-          DApp.blackjackInstance.initGame({from: DApp.state.account})
+          DApp.blackjackInstance.initGame({from: DApp.state.account, gasPrice: 2000000000})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
@@ -185,7 +185,7 @@ function CGame(oData){
           log.info("Action: Deal, waiting for TX to be mined.");
 
           s_oGame.displayMsg(TEXT_TD_PLACING_BET,TEXT_TD_PLACING_BET_INFO+TEXT_TD_WAITING_TX_MINED);
-          DApp.blackjackInstance.newRound(DApp.web3.utils.keccak256(TEST_SEED), betValue, {from: DApp.state.account})
+          DApp.blackjackInstance.newRound(DApp.web3.utils.keccak256(TEST_SEED), betValue, {from: DApp.state.account, gasPrice: 2000000000})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
@@ -202,7 +202,7 @@ function CGame(oData){
           log.info("Action: Hit, waiting for TX to be mined.");
 
           s_oGame.displayMsg(TEXT_TD_HIT_ACTION,TEXT_TD_HIT_ACTION_INFO+TEXT_TD_WAITING_TX_MINED);
-          DApp.blackjackInstance.hit({from: DApp.state.account})
+          DApp.blackjackInstance.hit({from: DApp.state.account, gasPrice: 2000000000})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
@@ -218,7 +218,7 @@ function CGame(oData){
           log.info("Action: Stand, waiting for TX to be mined.");
 
           s_oGame.displayMsg(TEXT_TD_STAND_ACTION,TEXT_TD_STAND_ACTION_INFO+TEXT_TD_WAITING_TX_MINED);
-          DApp.blackjackInstance.stand({from: DApp.state.account})
+          DApp.blackjackInstance.stand({from: DApp.state.account, gasPrice: 2000000000})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
@@ -234,7 +234,7 @@ function CGame(oData){
           log.info("Action: Claim, waiting for TX to be mined.");
 
           s_oGame.displayMsg(TEXT_TD_CLAIM_ACTION,TEXT_TD_CLAIM_ACTION_INFO+TEXT_TD_WAITING_TX_MINED);
-          DApp.blackjackInstance.claim(seed, {from: DApp.state.account})
+          DApp.blackjackInstance.claim(seed, {from: DApp.state.account, gasPrice: 2000000000})
             .then(function(result) {
               log.info("TX mined.");
               console.log(result);
