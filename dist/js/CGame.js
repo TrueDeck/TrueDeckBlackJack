@@ -9,7 +9,7 @@ function CGame(oData){
       state: {},
 
       init: function() {
-        log.setLevel("info");
+        log.setLevel("debug");
         return DApp.initWeb3();
       },
 
@@ -64,7 +64,6 @@ function CGame(oData){
             if (blockNumber === 0) {
                 log.debug("No game found!");
                 log.debug("Getting current block number!");
-                s_oGame.showSitDownButton();
             } else {
                 log.debug("Game already created!");
                 s_oGame.onSitDownComplete();
@@ -371,7 +370,6 @@ function CGame(oData){
     	_oGameOverPanel = new CGameOver();
     	_oMsgBox = new CMsgBox();
 
-        this.hideSitDownButton();
         DApp.init(s_oGame);
     };
 
