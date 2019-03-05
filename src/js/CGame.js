@@ -23,11 +23,11 @@ function CGame(oData){
         }
 
         DApp.web3.eth.net.getId().then(function(id) {
-          // if (id === 60) {
+          if (id === 60) {
             DApp.initContract();
-          // } else {
-          //   s_oGame._showGoChainRPC();
-          // }
+          } else {
+            s_oGame._showGoChainRPC();
+          }
         });
       },
 

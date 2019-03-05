@@ -32,6 +32,13 @@ module.exports = {
             },
             network_id: "*",
             gas: 4600000
+        },
+        gomain: {
+            provider: function() {
+                return new HDWalletProvider(mnemonic, "https://rpc.gochain.io:443");
+            },
+            network_id: "*",
+            gas: 4600000
         }
     },
     solc: {
