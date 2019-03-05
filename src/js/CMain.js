@@ -148,10 +148,22 @@ function CMain(oData){
         _iState = STATE_MENU;
     };
 
-    this.gotoGame = function(){
-        _oGame = new CGame(_oData);
+    this.gotoGame = async function(){
+        if (window.ethereum) {
+          window.web3 = new Web3(ethereum);
+          try {
+            await ethereum.enable();
 
-        _iState = STATE_GAME;
+            _oGame = new CGame(_oData);
+            _iState = STATE_GAME;
+          } catch (error) {
+            console.log("user denied access");
+            console.log(error);
+            this.gotoMenu();
+          }
+        } else {
+          console.log('Non-Ethereum browser detected. You should consider trying MetaMask!');
+        }
     };
 
     this.gotoHelp = function(){

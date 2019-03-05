@@ -10,7 +10,7 @@ function CGame(oData){
 
       init: function() {
         log.setLevel("info");
-        return DApp.initWeb3();
+        DApp.initWeb3();
       },
 
       initWeb3: function() {
@@ -22,7 +22,13 @@ function CGame(oData){
           log.error("No web wallet found! Please use MetaMask!");
         }
 
-        return DApp.initContract();
+        DApp.web3.eth.net.getId().then(function(id) {
+          // if (id === 60) {
+            DApp.initContract();
+          // } else {
+          //   s_oGame._showGoChainRPC();
+          // }
+        });
       },
 
       initContract: function() {
@@ -320,6 +326,7 @@ function CGame(oData){
     var _oInterface;
     var _oSeat;
     var _oGameOverPanel;
+    var _oGoChainRPCPanel;
     var _oMsgBox;
 
     this._init = function(){
@@ -369,6 +376,7 @@ function CGame(oData){
 
         _oInterface.disableBetFiches();
     	_oGameOverPanel = new CGameOver();
+      _oGoChainRPCPanel = new CGoChainRPC();
     	_oMsgBox = new CMsgBox();
 
         this.hideSitDownButton();
@@ -398,6 +406,7 @@ function CGame(oData){
 
         _oInterface.unload();
         _oGameOverPanel.unload();
+        _oGoChainRPCPanel.unload();
         _oMsgBox.unload();
         s_oStage.removeAllChildren();
     };
@@ -867,6 +876,10 @@ function CGame(oData){
     this._gameOver = function(){
         _oGameOverPanel.show();
     };
+
+    this._showGoChainRPC = function(){
+      _oGoChainRPCPanel.show();
+    }
 
     this.onFicheSelected = function(iFicheIndex,iFicheValue){
         this.ficheSelected(iFicheValue,iFicheIndex);
