@@ -20,21 +20,21 @@ function CGoChainRPC(){
         _oTextTitle.lineWidth = 450;
         _oContainer.addChild(_oTextTitle);
 
-        _rpcHeaderText = new createjs.Text(`Add "Custom RPC" in MetaMask`,"bold 20px "+FONT_GAME_1, "#ddd");
+        _rpcHeaderText = new createjs.Text('Add "Custom RPC" in MetaMask',"bold 20px "+FONT_GAME_1, "#ddd");
         _rpcHeaderText.textAlign = "left";
         _rpcHeaderText.x = CANVAS_WIDTH/2-220;
         _rpcHeaderText.y = 330;
         _rpcHeaderText.lineWidth = 450;
         _oContainer.addChild(_rpcHeaderText);
 
-        _rpcInstText = new createjs.Text(`Put following in "New RPC URL" and save`,"bold 18px "+FONT_GAME_1, "#ddd");
+        _rpcInstText = new createjs.Text('Put following in "New RPC URL" and save',"bold 18px "+FONT_GAME_1, "#ddd");
         _rpcInstText.textAlign = "left";
         _rpcInstText.x = CANVAS_WIDTH/2-220;
         _rpcInstText.y = 360;
         _rpcInstText.lineWidth = 450;
         _oContainer.addChild(_rpcInstText);
 
-        _rpcUrl = new createjs.Text(`https://rpc.gochain.io`,"bold 22px "+FONT_GAME_1, "#fff");
+        _rpcUrl = new createjs.Text('https://rpc.gochain.io',"bold 22px "+FONT_GAME_1, "#fff");
         _rpcUrl.textAlign = "left";
         _rpcUrl.x = CANVAS_WIDTH/2-220;
         _rpcUrl.y = 390;
